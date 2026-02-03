@@ -1,0 +1,22 @@
+{
+  "name": "screenshot-tray-tool",
+  "version": "1.0.0",
+  "description": "Windows 11 托盘截图工具 - 支持全局快捷键截图、剪贴板保存与浮窗操作",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "electron",
+    "screenshot",
+    "tray",
+    "clipboard",
+    "windows"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "27.0.0",
+    "screenshot-desktop": "^1.12.7"
+  }
+}

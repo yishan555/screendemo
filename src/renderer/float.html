@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screenshot Complete</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* Title bar with drag support */
+    .titlebar {
+      -webkit-app-region: drag;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .titlebar-title {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.9;
+      flex: 1;
+    }
+
+    .titlebar-controls {
+      -webkit-app-region: no-drag;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .control-btn.close {
+      background: #ff5f56;
+      border-color: #ff3b30;
+    }
+
+    .control-btn.close:hover {
+      background: #ff3b30;
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.8);
+      transform: scale(1.1);
+    }
+
+    .control-btn.settings {
+      background: #8c8c8c;
+      border-color: #6c6c6c;
+    }
+
+    .control-btn.settings:hover {
+      background: #6c6c6c;
+      box-shadow: 0 0 12px rgba(108, 108, 108, 0.8);
+      transform: scale(1.1);
+    }
+
+    .control-btn.minimize {
+      background: #ffbd2e;
+      border-color: #f5a623;
+    }
+
+    .control-btn.minimize:hover {
+      background: #f5a623;
+      box-shadow: 0 0 12px rgba(245, 166, 35, 0.8);
+      transform: scale(1.1);
+    }
+
+    .container {
+      -webkit-app-region: no-drag;
+      padding: 15px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .info-section {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .info-label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .info-value {
+      font-size: 11px;
+      word-break: break-all;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px;
+      border-radius: 4px;
+      max-height: 60px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .note-textarea {
+      width: 100%;
+      min-height: 70px;
+      max-height: 100px;
+      padding: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      font-size: 12px;
+      font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .note-textarea:focus {
+      outline: none;
+      border-color: rgba(102, 126, 234, 0.8);
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+
+    .note-hint {
+      font-size: 10px;
+      opacity: 0.8;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .clipboard-type-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      margin-bottom: 6px;
+    }
+
+    .clipboard-text {
+      margin-top: 6px;
+    }
+
+    .clipboard-image-preview {
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    .clipboard-image-preview img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.2);
+      object-fit: contain;
+    }
+
+    .image-action-btn {
+      margin-top: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s ease;
+    }
+
+    .image-action-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.35);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .close-btn {
+      background: rgba(255, 59, 48, 0.8);
+      border-color: rgba(255, 59, 48, 0.9);
+      margin-top: 8px;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 59, 48, 0.9);
+    }
+
+    .empty-text {
+      font-style: italic;
+      opacity: 0.7;
+      font-size: 12px;
+    }
+
+    /* 滚动条样式 */
+    .info-value::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .info-value::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+    }
+
+    .info-value::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    .info-value::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- Title bar with drag and control buttons -->
+  <div class="titlebar">
+    <div class="titlebar-title">✅ Screenshot Complete</div>
+    <div class="titlebar-controls">
+      <button class="control-btn settings" id="settingsBtn" title="Settings"></button>
+      <button class="control-btn minimize" id="minimizeBtn" title="Minimize"></button>
+      <button class="control-btn close" id="closeBtnTop" title="Close"></button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="info-section">
+      <div class="info-label">Note (Editable):</div>
+      <textarea class="note-textarea" id="noteTextarea" placeholder="Edit note or add text here..."></textarea>
+      <div class="note-hint">Note is editable and auto-saved. Original clipboard below is read-only.</div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-label">Original Clipboard Snapshot:</div>
+      <div id="clipboardContent">
+        <!-- Text clipboard -->
+        <div id="clipboardTextSection" style="display: none;">
+          <div class="clipboard-type-badge">📝 Text</div>
+          <div class="info-value clipboard-text" id="clipboardText">(Empty)</div>
+        </div>
+        <!-- Image clipboard -->
+        <div id="clipboardImageSection" style="display: none;">
+          <div class="clipboard-type-badge">🖼️ Image</div>
+          <div class="clipboard-image-preview">
+            <img id="clipboardImage" src="" alt="Clipboard image" />
+            <button class="image-action-btn" id="openClipboardImageBtn">📂 Open Full Size</button>
+          </div>
+        </div>
+        <!-- Empty state -->
+        <div id="clipboardEmptySection" class="empty-text">
+          (No clipboard content captured)
+        </div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="openImageBtn">🖼️ Open Image</button>
+      <button id="openDirBtn">📁 Open Directory</button>
+      <button id="closeBtn" class="close-btn">✖️ Close</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let currentData = null;
+    let hasUnsavedChanges = false;
+
+    // Receive screenshot data
+    ipcRenderer.on('capture-data', (event, data) => {
+      console.log('Received screenshot data:', data);
+      currentData = data;
+      updateUI(data);
+    });
+
+    // Update UI
+    function updateUI(data) {
+      // Update note textarea with initial content
+      const noteTextarea = document.getElementById('noteTextarea');
+      if (data.clipboard && data.clipboard.text) {
+        noteTextarea.value = data.clipboard.text;
+      } else {
+        noteTextarea.value = '';
+      }
+
+      // Display clipboard content by type
+      displayClipboardContent(data.clipboard);
+    }
+
+    // Display clipboard content based on type
+    function displayClipboardContent(clipboard) {
+      const textSection = document.getElementById('clipboardTextSection');
+      const imageSection = document.getElementById('clipboardImageSection');
+      const emptySection = document.getElementById('clipboardEmptySection');
+
+      // Hide all sections first
+      textSection.style.display = 'none';
+      imageSection.style.display = 'none';
+      emptySection.style.display = 'none';
+
+      if (!clipboard || !clipboard.types || clipboard.types.length === 0) {
+        // No clipboard content
+        emptySection.style.display = 'block';
+        return;
+      }
+
+      // Show text if available
+      if (clipboard.types.includes('text') && clipboard.text) {
+        textSection.style.display = 'block';
+        const clipboardTextEl = document.getElementById('clipboardText');
+        const summary = clipboard.text.length > 200
+          ? clipboard.text.substring(0, 200) + '...'
+          : clipboard.text;
+        clipboardTextEl.textContent = summary;
+      }
+
+      // Show image if available
+      if (clipboard.types.includes('image') && clipboard.imagePath) {
+        imageSection.style.display = 'block';
+        const clipboardImageEl = document.getElementById('clipboardImage');
+        // Use file:// protocol to display local image
+        clipboardImageEl.src = clipboard.imagePath;
+      }
+    }
+
+    // Track changes to note textarea
+    document.getElementById('noteTextarea').addEventListener('input', () => {
+      hasUnsavedChanges = true;
+    });
+
+    // Auto-save note function
+    async function saveNote() {
+      if (!hasUnsavedChanges || !currentData) {
+        return;
+      }
+
+      const noteText = document.getElementById('noteTextarea').value;
+      console.log('Auto-saving note...');
+
+      try {
+        await ipcRenderer.invoke('save-note', {
+          metadataPath: currentData.metadataPath,
+          noteText: noteText
+        });
+        hasUnsavedChanges = false;
+        console.log('Note saved successfully');
+      } catch (error) {
+        console.error('Failed to save note:', error);
+      }
+    }
+
+    // Open screenshot image
+    document.getElementById('openImageBtn').addEventListener('click', () => {
+      if (currentData && currentData.imagePath) {
+        ipcRenderer.send('open-image', currentData.imagePath);
+      }
+    });
+
+    // Open clipboard image
+    document.getElementById('openClipboardImageBtn').addEventListener('click', () => {
+      if (currentData && currentData.clipboard && currentData.clipboard.imagePath) {
+        ipcRenderer.send('open-image', currentData.clipboard.imagePath);
+      }
+    });
+
+    // Open save directory
+    document.getElementById('openDirBtn').addEventListener('click', () => {
+      ipcRenderer.send('open-directory');
+    });
+
+    // Close float window (bottom button) - auto-save before closing
+    document.getElementById('closeBtn').addEventListener('click', async () => {
+      await saveNote();
+      ipcRenderer.send('close-float');
+    });
+
+    // Close float window (top button) - auto-save before closing
+    document.getElementById('closeBtnTop').addEventListener('click', async () => {
+      await saveNote();
+      ipcRenderer.send('close-float');
+    });
+
+    // Open settings window
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      ipcRenderer.send('open-settings');
+    });
+
+    // Minimize float window
+    document.getElementById('minimizeBtn').addEventListener('click', () => {
+      ipcRenderer.send('minimize-float');
+    });
+
+    // Listen for window close event to auto-save
+    window.addEventListener('beforeunload', async (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        await saveNote();
+      }
+    });
+  </script>
+</body>
+</html>

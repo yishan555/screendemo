@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      overflow: hidden;
+    }
+
+    /* Title bar */
+    .titlebar {
+      -webkit-app-region: drag;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .titlebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .titlebar-controls {
+      -webkit-app-region: no-drag;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      background: #ff5f56;
+      border-color: #ff3b30;
+    }
+
+    .control-btn:hover {
+      background: #ff3b30;
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.8);
+      transform: scale(1.1);
+    }
+
+    .control-btn.minimize {
+      background: #ffbd2e;
+      border-color: #f5a623;
+    }
+
+    .control-btn.minimize:hover {
+      background: #f5a623;
+      box-shadow: 0 0 12px rgba(245, 166, 35, 0.8);
+      transform: scale(1.1);
+    }
+
+    .container {
+      -webkit-app-region: no-drag;
+      padding: 24px;
+      height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #555;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #d0d0d0;
+    }
+
+    .btn-reset {
+      background: #ff5f56;
+      color: #fff;
+    }
+
+    .btn-reset:hover {
+      background: #ff3b30;
+      box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
+    }
+
+    .browse-btn {
+      margin-top: 8px;
+      padding: 8px 16px;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .browse-btn:hover {
+      background: #5568d3;
+    }
+
+    .current-path {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+
+    .success-message {
+      background: #4caf50;
+      color: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+      font-size: 13px;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Scrollbar styles */
+    .container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .container::-webkit-scrollbar-track {
+      background: #f5f5f5;
+    }
+
+    .container::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 4px;
+    }
+
+    .container::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+  </style>
+</head>
+<body>
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-title">⚙️ Settings</div>
+    <div class="titlebar-controls">
+      <button class="control-btn minimize" id="minimizeBtnTop" title="Minimize"></button>
+      <button class="control-btn" id="closeBtnTop" title="Close"></button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Success message -->
+    <div class="success-message" id="successMessage">
+      ✓ Settings saved successfully!
+    </div>
+
+    <!-- Shortcut Settings -->
+    <div class="section">
+      <div class="section-title">⌨️ Shortcut Key</div>
+      <div class="form-group">
+        <label class="form-label">Global Screenshot Shortcut</label>
+        <input type="text" class="form-input" id="shortcutInput" placeholder="e.g., CommandOrControl+Shift+X" readonly>
+        <div class="form-hint">Click in the input field and press your desired key combination</div>
+        <div class="form-hint">Supported modifiers: Ctrl, Shift, Alt, Command (macOS)</div>
+      </div>
+    </div>
+
+    <!-- Save Path Settings -->
+    <div class="section">
+      <div class="section-title">📁 Save Location</div>
+      <div class="form-group">
+        <label class="form-label">Screenshot Save Directory</label>
+        <input type="text" class="form-input" id="savePathInput" placeholder="e.g., C:\Screenshots">
+        <button class="browse-btn" id="browseBtn">📂 Browse</button>
+        <div class="current-path" id="currentPath">Current: Using default location</div>
+        <div class="form-hint">Leave empty to use default location (AppData)</div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="btn-group">
+      <button class="btn-reset" id="resetBtn">🔄 Reset to Default</button>
+      <button class="btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn-primary" id="saveBtn">💾 Save</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let currentSettings = {};
+    let recordingShortcut = false;
+    let pressedKeys = new Set();
+
+    // Load current settings
+    ipcRenderer.invoke('get-settings').then(settings => {
+      currentSettings = settings;
+      updateUI(settings);
+    });
+
+    function updateUI(settings) {
+      document.getElementById('shortcutInput').value = settings.shortcut || 'CommandOrControl+Shift+X';
+      document.getElementById('savePathInput').value = settings.customSavePath || '';
+
+      const currentPathEl = document.getElementById('currentPath');
+      if (settings.customSavePath) {
+        currentPathEl.textContent = `Current: ${settings.customSavePath}`;
+      } else {
+        currentPathEl.textContent = 'Current: Using default location (AppData)';
+      }
+    }
+
+    // Shortcut recording
+    const shortcutInput = document.getElementById('shortcutInput');
+    shortcutInput.addEventListener('focus', () => {
+      recordingShortcut = true;
+      shortcutInput.value = 'Press keys...';
+      shortcutInput.style.borderColor = '#667eea';
+      pressedKeys.clear();
+    });
+
+    shortcutInput.addEventListener('blur', () => {
+      recordingShortcut = false;
+      shortcutInput.style.borderColor = '#e0e0e0';
+      if (shortcutInput.value === 'Press keys...') {
+        shortcutInput.value = currentSettings.shortcut || 'CommandOrControl+Shift+X';
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!recordingShortcut) return;
+
+      e.preventDefault();
+      pressedKeys.add(e.key);
+
+      const modifiers = [];
+      if (e.ctrlKey || e.metaKey) modifiers.push('CommandOrControl');
+      if (e.shiftKey) modifiers.push('Shift');
+      if (e.altKey) modifiers.push('Alt');
+
+      // Get the main key (not a modifier)
+      let mainKey = e.key;
+      if (mainKey === 'Control' || mainKey === 'Meta' || mainKey === 'Shift' || mainKey === 'Alt') {
+        return; // Wait for actual key
+      }
+
+      // Convert key to uppercase for letters
+      if (mainKey.length === 1) {
+        mainKey = mainKey.toUpperCase();
+      }
+
+      const shortcut = [...modifiers, mainKey].join('+');
+      shortcutInput.value = shortcut;
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (!recordingShortcut) return;
+      pressedKeys.delete(e.key);
+    });
+
+    // Browse for save path
+    document.getElementById('browseBtn').addEventListener('click', async () => {
+      const result = await ipcRenderer.invoke('select-directory');
+      if (result) {
+        document.getElementById('savePathInput').value = result;
+        document.getElementById('currentPath').textContent = `Current: ${result}`;
+      }
+    });
+
+    // Save settings
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const newSettings = {
+        shortcut: document.getElementById('shortcutInput').value,
+        customSavePath: document.getElementById('savePathInput').value
+      };
+
+      const success = await ipcRenderer.invoke('save-settings', newSettings);
+      if (success) {
+        currentSettings = newSettings;
+        showSuccessMessage();
+        setTimeout(() => {
+          ipcRenderer.send('close-settings');
+        }, 1500);
+      }
+    });
+
+    // Reset to default
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+      const confirmed = confirm('Reset all settings to default values?');
+      if (confirmed) {
+        const defaultSettings = {
+          shortcut: 'CommandOrControl+Shift+X',
+          customSavePath: ''
+        };
+        updateUI(defaultSettings);
+      }
+    });
+
+    // Cancel
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      ipcRenderer.send('close-settings');
+    });
+
+    // Close button (top)
+    document.getElementById('closeBtnTop').addEventListener('click', () => {
+      ipcRenderer.send('close-settings');
+    });
+
+    // Minimize button (top)
+    document.getElementById('minimizeBtnTop').addEventListener('click', () => {
+      ipcRenderer.send('minimize-settings');
+    });
+
+    function showSuccessMessage() {
+      const msg = document.getElementById('successMessage');
+      msg.style.display = 'block';
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
