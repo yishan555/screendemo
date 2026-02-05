@@ -17,9 +17,9 @@ class TrayManager {
    */
   create() {
     try {
-      // Create a simple placeholder icon (16x16 white square)
-      // Should be replaced with actual .ico file in production
-      const icon = this.createPlaceholderIcon();
+      // Load icon from assets
+      const iconPath = path.join(__dirname, '../assets/icons/screendemo.ico');
+      const icon = nativeImage.createFromPath(iconPath);
 
       this.tray = new Tray(icon);
       this.tray.setToolTip('Screenshot Tool - Ctrl+Shift+X to capture');
@@ -27,34 +27,11 @@ class TrayManager {
       // Create menu
       this.createMenu();
 
-      logger.info('Tray icon created');
+      logger.info('Tray icon created with screendemo.ico');
     } catch (error) {
       logger.error('Failed to create tray:', error.message);
       throw error;
     }
-  }
-
-  /**
-   * Create placeholder icon (simple white square)
-   * Should use actual .ico file in production
-   */
-  createPlaceholderIcon() {
-    // Create a 16x16 white square as placeholder icon
-    const iconSize = 16;
-    const canvas = {
-      width: iconSize,
-      height: iconSize
-    };
-
-    // Use nativeImage to create a simple icon
-    // Create a transparent icon and set tooltip so user knows it exists
-    const image = nativeImage.createEmpty();
-
-    // Alternative: if above method is not visible, use a simple base64 icon
-    // This is a 16x16 blue square PNG
-    const iconData = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABPSURBVDiN7ZLBDQAgCAPh/5+2E7iIO1QjGv0YE5oQUgLyPwBgZlYAMDNzzgEAM8M5h5kBAMwM7z3MDABgZnDOwTkHAGBmmBnee5gZAOABc88hDQ/KjBQAAAAASUVORK5CYII=';
-
-    return nativeImage.createFromDataURL('data:image/png;base64,' + iconData);
   }
 
   /**
@@ -72,6 +49,17 @@ class TrayManager {
           if (this.onCaptureRequest) {
             this.onCaptureRequest();
           }
+        }
+      },
+      {
+        type: 'separator'
+      },
+      {
+        label: 'Memo Window',
+        click: () => {
+          logger.info('Opening Memo Window via tray menu');
+          const memoWindow = require('./windows/memo');
+          memoWindow.show();
         }
       },
       {

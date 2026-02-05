@@ -12,6 +12,7 @@ const tray = require('./tray');
 const shortcut = require('./shortcut');
 const floatWindow = require('./windows/float');
 const settingsWindow = require('./windows/settings');
+const memoWindow = require('./windows/memo');
 const capture = require('./capture');
 
 // 确保单实例运行
@@ -64,6 +65,9 @@ if (!gotTheLock) {
 
       // 7. Setup settings window IPC listeners
       settingsWindow.setupIPC();
+
+      // 8. Setup memo window IPC listeners
+      memoWindow.setupIPC();
 
       logger.info('========================================');
       logger.info('Screenshot Tool Ready');

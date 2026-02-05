@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memo Window</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      overflow: hidden;
+    }
+
+    /* Title bar */
+    .titlebar {
+      -webkit-app-region: drag;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .titlebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .title-icon {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+
+    .titlebar-controls {
+      -webkit-app-region: no-drag;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-btn {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      background: #ff5f56;
+      border-color: #ff3b30;
+    }
+
+    .control-btn:hover {
+      background: #ff3b30;
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.8);
+      transform: scale(1.1);
+    }
+
+    .control-btn.minimize {
+      background: #ffbd2e;
+      border-color: #f5a623;
+    }
+
+    .control-btn.minimize:hover {
+      background: #f5a623;
+      box-shadow: 0 0 12px rgba(245, 166, 35, 0.8);
+      transform: scale(1.1);
+    }
+
+    /* Filter tabs */
+    .filter-tabs {
+      -webkit-app-region: no-drag;
+      display: flex;
+      gap: 0;
+      background: #fff;
+      border-bottom: 2px solid #e0e0e0;
+      padding: 0 20px;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      color: #666;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+
+    .tab:hover {
+      color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      font-weight: 600;
+    }
+
+    /* List container */
+    .list-container {
+      -webkit-app-region: no-drag;
+      height: calc(100vh - 40px - 51px);
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 70px; /* Add space for the floating add button */
+    }
+
+    /* List item */
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+      transition: all 0.2s ease;
+      cursor: move;
+    }
+
+    .list-item:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .list-item.dragging {
+      opacity: 0.5;
+      cursor: grabbing;
+    }
+
+    .list-item.drop-before {
+      border-top: 3px solid #667eea;
+    }
+
+    .list-item.drop-after {
+      border-bottom: 3px solid #667eea;
+    }
+
+    .drag-handle {
+      color: #999;
+      font-size: 16px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .status-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .thumbnail-container {
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .thumbnail-container:hover {
+      transform: scale(1.05);
+    }
+
+    .thumbnail-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .thumbnail-placeholder {
+      font-size: 32px;
+      color: #ccc;
+      background: #4a4a4a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .item-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .item-text-info {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 300px;
+    }
+
+    .note-preview {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 4px;
+    }
+
+    .note-preview.empty {
+      color: #999;
+      font-style: italic;
+    }
+
+    .timestamp {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 2px;
+    }
+
+    .clipboard-indicator {
+      font-size: 12px;
+      color: #667eea;
+    }
+
+    .clipboard-thumbnail {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      border: 2px solid #667eea;
+    }
+
+    .clipboard-thumbnail:hover {
+      transform: scale(1.05);
+    }
+
+    .clipboard-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .delete-btn {
+      padding: 8px 12px;
+      border: none;
+      background: #ff5f56;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .delete-btn img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+
+    .delete-btn:hover {
+      background: #ff3b30;
+      transform: scale(1.05);
+    }
+
+    /* Add button */
+    .add-btn {
+      position: fixed;
+      right: 32px;
+      bottom: 32px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid rgba(107, 80, 207, 0.3);
+      background: rgba(107, 80, 207, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 300;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+      z-index: 100;
+    }
+
+    .add-btn:hover {
+      transform: scale(1.1);
+      background: rgba(255, 255, 255, 0.25);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .add-btn:active {
+      transform: scale(1.05);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state-text {
+      font-size: 14px;
+    }
+
+    /* Scrollbar */
+    .list-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .list-container::-webkit-scrollbar-track {
+      background: #f5f5f5;
+    }
+
+    .list-container::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 4px;
+    }
+
+    .list-container::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+
+    /* Status-specific styling */
+    .list-item[data-status="done"] .note-preview {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    /* Add note modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 500px;
+      max-width: 90%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    .modal-textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+      margin-bottom: 12px;
+      transition: border-color 0.2s ease;
+    }
+
+    .modal-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .modal-image-preview {
+      display: none;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid #667eea;
+      background: #f5f5f5;
+    }
+
+    .modal-image-preview.show {
+      display: block;
+    }
+
+    .modal-image-preview img {
+      width: 100%;
+      height: auto;
+      max-height: 200px;
+      object-fit: contain;
+    }
+
+    .modal-hint {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 16px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-btn-cancel {
+      background: #f5f5f5;
+      color: #666;
+    }
+
+    .modal-btn-cancel:hover {
+      background: #e0e0e0;
+    }
+
+    .modal-btn-confirm {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+
+    .modal-btn-confirm:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .modal-btn-confirm:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-title">
+      <img src="../assets/icons/icons-notebook.png" alt="memo" class="title-icon">
+      Memo
+    </div>
+    <div class="titlebar-controls">
+      <button class="control-btn minimize" id="minimizeBtn" title="Minimize"></button>
+      <button class="control-btn" id="closeBtn" title="Close"></button>
+    </div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs">
+    <button class="tab active" data-filter="all">All</button>
+    <button class="tab" data-filter="todo">Todo</button>
+    <button class="tab" data-filter="done">Done</button>
+  </div>
+
+  <!-- List container -->
+  <div class="list-container" id="listContainer">
+    <!-- List items will be rendered here dynamically -->
+  </div>
+
+  <!-- Add button -->
+  <button class="add-btn" id="addBtn">+</button>
+
+  <!-- Add note modal -->
+  <div class="modal-overlay" id="addNoteModal">
+    <div class="modal-content">
+      <div class="modal-header">Create New Note</div>
+      <textarea class="modal-textarea" id="noteTextarea" placeholder="Enter your note here..."></textarea>
+      <div class="modal-image-preview" id="imagePreview">
+        <img id="previewImg" src="" alt="Pasted image">
+      </div>
+      <div class="modal-hint">💡 Tip: You can paste an image from clipboard (Ctrl+V)</div>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" id="modalCancelBtn">Cancel</button>
+        <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let currentFilter = 'all';
+    let records = [];
+    let draggedItem = null;
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRecords(currentFilter);
+      setupEventListeners();
+      setupModalListeners();
+    });
+
+    // Setup all event listeners
+    function setupEventListeners() {
+      // Window controls
+      document.getElementById('minimizeBtn').addEventListener('click', () => {
+        ipcRenderer.send('minimize-memo');
+      });
+
+      document.getElementById('closeBtn').addEventListener('click', () => {
+        ipcRenderer.send('close-memo');
+      });
+
+      // Filter tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Update active state
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          // Load records with new filter
+          currentFilter = tab.dataset.filter;
+          loadRecords(currentFilter);
+        });
+      });
+
+      // Add note button
+      document.getElementById('addBtn').addEventListener('click', handleAddNote);
+    }
+
+    // Load records from storage
+    async function loadRecords(filter = 'all') {
+      try {
+        const result = await ipcRenderer.invoke('memo:list-records', filter);
+
+        if (result.success) {
+          records = result.records;
+          renderList(records);
+        } else {
+          console.error('Failed to load records:', result.error);
+          showEmptyState('Failed to load records');
+        }
+      } catch (error) {
+        console.error('Error loading records:', error);
+        showEmptyState('Error loading records');
+      }
+    }
+
+    // Render list of records
+    function renderList(records) {
+      const container = document.getElementById('listContainer');
+
+      if (records.length === 0) {
+        showEmptyState();
+        return;
+      }
+
+      container.innerHTML = records.map(record => {
+        const notePreview = record.note?.text
+          ? (record.note.text.substring(0, 10) + (record.note.text.length > 10 ? '...' : ''))
+          : '';
+
+        const noteClass = notePreview ? 'note-preview' : 'note-preview empty';
+        const noteDisplay = notePreview || '(无备注)';
+
+        const timestamp = new Date(record.createdAt).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const thumbnailHtml = record.imagePath
+          ? `<img src="file:///${record.imagePath.replace(/\\/g, '/')}" alt="Screenshot">`
+          : '<div class="thumbnail-placeholder"><img src="../assets/icons/icons-text.png" alt="text note" style="width: 40px; height: 40px; object-fit: contain;"></div>';
+
+        // Clipboard thumbnail (only show if clipboard contains image)
+        const clipboardThumbnailHtml = record.clipboard?.imagePath
+          ? `<div class="clipboard-thumbnail" data-clipboard-path="${record.clipboard.imagePath}">
+               <img src="file:///${record.clipboard.imagePath.replace(/\\/g, '/')}" alt="Clipboard image">
+             </div>`
+          : '';
+
+        // Remove clipboard type indicators - not needed
+        const clipboardIndicator = '';
+
+        return `
+          <div class="list-item"
+               data-metadata-path="${record.metadataPath}"
+               data-status="${record.status}"
+               draggable="true">
+            <div class="drag-handle">⋮⋮</div>
+            <input type="checkbox"
+                   class="status-checkbox"
+                   ${record.status === 'done' ? 'checked' : ''}>
+            <div class="item-info">
+              <div class="item-text-info">
+                <div class="${noteClass}">${noteDisplay}</div>
+                <div class="timestamp">${timestamp}</div>
+                ${clipboardIndicator}
+              </div>
+              ${clipboardThumbnailHtml}
+            </div>
+            <div class="thumbnail-container">
+              ${thumbnailHtml}
+            </div>
+            <button class="delete-btn">
+              <img src="../assets/icons/icons-delete.png" alt="delete">
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      // Setup drag-and-drop handlers
+      setupDragAndDrop();
+
+      // Setup click handlers
+      setupItemHandlers();
+    }
+
+    // Show empty state
+    function showEmptyState(message = null) {
+      const container = document.getElementById('listContainer');
+      const emptyMessage = message || (currentFilter === 'all'
+        ? 'No records yet. Take a screenshot to create one!'
+        : `No ${currentFilter} records found.`);
+
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-text">${emptyMessage}</div>
+        </div>
+      `;
+    }
+
+    // Setup drag-and-drop handlers
+    function setupDragAndDrop() {
+      const items = document.querySelectorAll('.list-item');
+
+      items.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragend', handleDragEnd);
+      });
+    }
+
+    function handleDragStart(e) {
+      draggedItem = this;
+      e.dataTransfer.effectAllowed = 'move';
+      this.classList.add('dragging');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      if (this === draggedItem) return;
+
+      // Visual feedback
+      const rect = this.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      if (e.clientY < midY) {
+        this.classList.add('drop-before');
+        this.classList.remove('drop-after');
+      } else {
+        this.classList.add('drop-after');
+        this.classList.remove('drop-before');
+      }
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+
+      if (this === draggedItem) return;
+
+      // Reorder in DOM
+      const rect = this.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      if (e.clientY < midY) {
+        this.parentNode.insertBefore(draggedItem, this);
+      } else {
+        this.parentNode.insertBefore(draggedItem, this.nextSibling);
+      }
+
+      // Persist new order
+      recalculateOrderAndSave();
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+      document.querySelectorAll('.list-item').forEach(item => {
+        item.classList.remove('drop-before', 'drop-after');
+      });
+    }
+
+    async function recalculateOrderAndSave() {
+      const items = Array.from(document.querySelectorAll('.list-item'));
+      const updates = [];
+
+      // Assign order values based on DOM position (descending)
+      items.forEach((item, index) => {
+        const metadataPath = item.dataset.metadataPath;
+        const order = 1000000 - index;  // Higher number = top of list
+        updates.push({ metadataPath, order });
+      });
+
+      // Send batch update to main process
+      try {
+        const result = await ipcRenderer.invoke('memo:update-order', updates);
+        if (result.success) {
+          console.log('Order updated successfully');
+        } else {
+          console.error('Failed to update order:', result.error);
+        }
+      } catch (error) {
+        console.error('Error updating order:', error);
+      }
+    }
+
+    // Setup item-specific handlers (checkbox, thumbnail, delete button)
+    function setupItemHandlers() {
+      // Status checkboxes
+      document.querySelectorAll('.status-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', handleStatusToggle);
+      });
+
+      // Double-click on list item to edit
+      document.querySelectorAll('.list-item').forEach(item => {
+        item.addEventListener('dblclick', function(e) {
+          // Ignore if clicked on checkbox, button, or thumbnail
+          if (e.target.closest('.status-checkbox, .delete-btn, .thumbnail-container, .clipboard-thumbnail')) {
+            return;
+          }
+
+          const metadataPath = this.dataset.metadataPath;
+          const record = records.find(r => r.metadataPath === metadataPath);
+
+          if (record) {
+            // Open float window in edit mode
+            ipcRenderer.send('memo:edit-record', record);
+          }
+        });
+      });
+
+      // Thumbnail clicks (screenshot)
+      document.querySelectorAll('.thumbnail-container').forEach(thumbnail => {
+        thumbnail.addEventListener('click', function() {
+          const listItem = this.closest('.list-item');
+          const metadataPath = listItem.dataset.metadataPath;
+          const record = records.find(r => r.metadataPath === metadataPath);
+
+          if (record && record.imagePath) {
+            ipcRenderer.send('memo:open-screenshot', record.imagePath);
+          }
+        });
+      });
+
+      // Clipboard thumbnail clicks
+      document.querySelectorAll('.clipboard-thumbnail').forEach(thumbnail => {
+        thumbnail.addEventListener('click', function() {
+          const clipboardPath = this.dataset.clipboardPath;
+          if (clipboardPath) {
+            ipcRenderer.send('memo:open-screenshot', clipboardPath);
+          }
+        });
+      });
+
+      // Delete buttons
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const listItem = this.closest('.list-item');
+          const metadataPath = listItem.dataset.metadataPath;
+          handleDelete(metadataPath);
+        });
+      });
+    }
+
+    // Handle status toggle
+    async function handleStatusToggle(e) {
+      const checkbox = e.target;
+      const listItem = checkbox.closest('.list-item');
+      const metadataPath = listItem.dataset.metadataPath;
+      const newStatus = checkbox.checked ? 'done' : 'todo';
+
+      // Update immediately for responsive UI
+      listItem.dataset.status = newStatus;
+
+      try {
+        const result = await ipcRenderer.invoke('memo:update-status', {
+          metadataPath,
+          status: newStatus
+        });
+
+        if (!result.success) {
+          // Revert on failure
+          checkbox.checked = !checkbox.checked;
+          listItem.dataset.status = checkbox.checked ? 'done' : 'todo';
+          alert('Failed to update status: ' + result.error);
+        } else {
+          // If filter is active, reload to remove item from view
+          if (currentFilter !== 'all') {
+            await loadRecords(currentFilter);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating status:', error);
+        checkbox.checked = !checkbox.checked;
+        listItem.dataset.status = checkbox.checked ? 'done' : 'todo';
+        alert('Error updating status');
+      }
+    }
+
+    // Handle delete
+    async function handleDelete(metadataPath) {
+      const record = records.find(r => r.metadataPath === metadataPath);
+
+      let confirmMessage = 'Delete this record?\n\nThis will delete:\n- Metadata file\n';
+      if (record.imagePath) {
+        confirmMessage += '- Screenshot image\n';
+      }
+      if (record.clipboard?.imagePath) {
+        confirmMessage += '- Clipboard image\n';
+      }
+      confirmMessage += '\nThis action cannot be undone.';
+
+      const confirmed = confirm(confirmMessage);
+
+      if (confirmed) {
+        try {
+          const result = await ipcRenderer.invoke('memo:delete-record', metadataPath);
+
+          if (result.success) {
+            // Reload list
+            await loadRecords(currentFilter);
+          } else {
+            alert('Failed to delete record: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Error deleting record:', error);
+          alert('Error deleting record');
+        }
+      }
+    }
+
+    // Handle add note
+    let pastedImageBuffer = null;
+
+    function handleAddNote() {
+      // Show modal
+      const modal = document.getElementById('addNoteModal');
+      const textarea = document.getElementById('noteTextarea');
+      const imagePreview = document.getElementById('imagePreview');
+      const previewImg = document.getElementById('previewImg');
+
+      // Reset state
+      textarea.value = '';
+      pastedImageBuffer = null;
+      imagePreview.classList.remove('show');
+      previewImg.src = '';
+
+      // Show modal
+      modal.classList.add('show');
+      textarea.focus();
+    }
+
+    // Setup modal event listeners
+    function setupModalListeners() {
+      const modal = document.getElementById('addNoteModal');
+      const textarea = document.getElementById('noteTextarea');
+      const imagePreview = document.getElementById('imagePreview');
+      const previewImg = document.getElementById('previewImg');
+      const cancelBtn = document.getElementById('modalCancelBtn');
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+
+      // Cancel button
+      cancelBtn.addEventListener('click', () => {
+        modal.classList.remove('show');
+        pastedImageBuffer = null;
+      });
+
+      // Confirm button
+      confirmBtn.addEventListener('click', async () => {
+        const noteText = textarea.value.trim();
+
+        // Must have either text or image
+        if (!noteText && !pastedImageBuffer) {
+          alert('Please enter text or paste an image');
+          return;
+        }
+
+        // Disable button during creation
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Creating...';
+
+        try {
+          const result = await ipcRenderer.invoke('memo:add-record-with-image', {
+            noteText: noteText || '',
+            imageBuffer: pastedImageBuffer
+          });
+
+          if (result.success) {
+            // Close modal
+            modal.classList.remove('show');
+            pastedImageBuffer = null;
+
+            // Reload list to show new record at top
+            await loadRecords(currentFilter);
+          } else {
+            alert('Failed to create record: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Error creating record:', error);
+          alert('Error creating record');
+        } finally {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Create';
+        }
+      });
+
+      // Close modal when clicking overlay
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('show');
+          pastedImageBuffer = null;
+        }
+      });
+
+      // Handle paste event for images
+      textarea.addEventListener('paste', async (e) => {
+        const items = e.clipboardData.items;
+
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+
+            const blob = items[i].getAsFile();
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+              // Show preview
+              previewImg.src = event.target.result;
+              imagePreview.classList.add('show');
+
+              // Store buffer (remove data URL prefix)
+              const base64Data = event.target.result.split(',')[1];
+              pastedImageBuffer = Buffer.from(base64Data, 'base64');
+            };
+
+            reader.readAsDataURL(blob);
+            break;
+          }
+        }
+      });
+
+      // ESC key to close modal
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+          modal.classList.remove('show');
+          pastedImageBuffer = null;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

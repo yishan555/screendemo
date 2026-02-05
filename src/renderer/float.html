@@ -11,11 +11,16 @@
       box-sizing: border-box;
     }
 
+    html, body {
+      height: auto;
+      min-height: 0;
+    }
+
     body {
       font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #fff;
-      overflow: hidden;
+      overflow: visible;
     }
 
     /* Title bar with drag support */
@@ -35,6 +40,15 @@
       font-weight: 500;
       opacity: 0.9;
       flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .title-icon {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
     }
 
     .titlebar-controls {
@@ -91,8 +105,6 @@
     .container {
       -webkit-app-region: no-drag;
       padding: 15px;
-      max-height: calc(100vh - 32px);
-      overflow-y: auto;
     }
 
     h2 {
@@ -217,6 +229,16 @@
       font-weight: 500;
       transition: all 0.2s ease;
       backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
     }
 
     button:hover {
@@ -268,7 +290,10 @@
 <body>
   <!-- Title bar with drag and control buttons -->
   <div class="titlebar">
-    <div class="titlebar-title">✅ Screenshot Complete</div>
+    <div class="titlebar-title">
+      <img src="../assets/icons/title-icon.png" alt="icon" class="title-icon">
+      Add New Notes
+    </div>
     <div class="titlebar-controls">
       <button class="control-btn settings" id="settingsBtn" title="Settings"></button>
       <button class="control-btn minimize" id="minimizeBtn" title="Minimize"></button>
@@ -279,7 +304,7 @@
   <div class="container">
 
     <div class="info-section">
-      <div class="info-label">Note (Editable):</div>
+      <div class="info-label">Note:</div>
       <textarea class="note-textarea" id="noteTextarea" placeholder="Edit note or add text here..."></textarea>
       <div class="note-hint">Note is editable and auto-saved. Original clipboard below is read-only.</div>
     </div>
@@ -289,12 +314,10 @@
       <div id="clipboardContent">
         <!-- Text clipboard -->
         <div id="clipboardTextSection" style="display: none;">
-          <div class="clipboard-type-badge">📝 Text</div>
           <div class="info-value clipboard-text" id="clipboardText">(Empty)</div>
         </div>
         <!-- Image clipboard -->
         <div id="clipboardImageSection" style="display: none;">
-          <div class="clipboard-type-badge">🖼️ Image</div>
           <div class="clipboard-image-preview">
             <img id="clipboardImage" src="" alt="Clipboard image" />
             <button class="image-action-btn" id="openClipboardImageBtn">📂 Open Full Size</button>
@@ -308,9 +331,11 @@
     </div>
 
     <div class="buttons">
-      <button id="openImageBtn">🖼️ Open Image</button>
-      <button id="openDirBtn">📁 Open Directory</button>
-      <button id="closeBtn" class="close-btn">✖️ Close</button>
+      <button id="saveBtn">
+        <img src="../assets/icons/icons-save.png" alt="save" class="btn-icon">
+        Save
+      </button>
+      <button id="openMemoBtn">Open Memo Window</button>
     </div>
   </div>
 
@@ -319,15 +344,37 @@
 
     let currentData = null;
     let hasUnsavedChanges = false;
+    let isEditMode = false; // Track if we're editing existing record
+
+    // Adjust height on initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => adjustWindowHeight(), 100);
+    });
+
+    // Open DevTools with F12
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F12') {
+        ipcRenderer.send('toggle-devtools-float');
+      }
+    });
 
     // Receive screenshot data
     ipcRenderer.on('capture-data', (event, data) => {
       console.log('Received screenshot data:', data);
       currentData = data;
+      isEditMode = false; // New capture mode
       updateUI(data);
     });
 
-    // Update UI
+    // Receive edit data
+    ipcRenderer.on('edit-data', (event, data) => {
+      console.log('Received edit data:', data);
+      currentData = data;
+      isEditMode = true; // Edit mode
+      updateUIForEdit(data);
+    });
+
+    // Update UI for new capture
     function updateUI(data) {
       // Update note textarea with initial content
       const noteTextarea = document.getElementById('noteTextarea');
@@ -339,6 +386,34 @@
 
       // Display clipboard content by type
       displayClipboardContent(data.clipboard);
+
+      // Adjust window height after content is rendered
+      // Use multiple delays to ensure we catch the final layout
+      setTimeout(() => adjustWindowHeight(), 50);
+      setTimeout(() => adjustWindowHeight(), 150);
+      setTimeout(() => adjustWindowHeight(), 300);
+    }
+
+    // Update UI for editing existing record
+    function updateUIForEdit(data) {
+      // Update note textarea with existing note
+      const noteTextarea = document.getElementById('noteTextarea');
+      // Note is an object with { text, updatedAt }, extract the text
+      const noteText = (data.note && typeof data.note === 'object')
+        ? data.note.text
+        : (data.note || '');
+      noteTextarea.value = noteText;
+
+      // Display clipboard content from record
+      displayClipboardContent(data.clipboard);
+
+      // Adjust window height after content is rendered
+      setTimeout(() => adjustWindowHeight(), 50);
+      setTimeout(() => adjustWindowHeight(), 150);
+      setTimeout(() => adjustWindowHeight(), 300);
+
+      // Reset unsaved changes flag since we just loaded
+      hasUnsavedChanges = false;
     }
 
     // Display clipboard content based on type
@@ -389,12 +464,13 @@
       }
 
       const noteText = document.getElementById('noteTextarea').value;
-      console.log('Auto-saving note...');
+      console.log('Auto-saving note...', isEditMode ? '(edit mode)' : '(new capture)');
 
       try {
         await ipcRenderer.invoke('save-note', {
           metadataPath: currentData.metadataPath,
-          noteText: noteText
+          noteText: noteText,
+          isEditMode: isEditMode  // Pass edit mode flag
         });
         hasUnsavedChanges = false;
         console.log('Note saved successfully');
@@ -403,10 +479,19 @@
       }
     }
 
-    // Open screenshot image
-    document.getElementById('openImageBtn').addEventListener('click', () => {
-      if (currentData && currentData.imagePath) {
-        ipcRenderer.send('open-image', currentData.imagePath);
+    // Save button - save current note content
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      await saveNote();
+      if (!hasUnsavedChanges) {
+        // Show success feedback
+        const saveBtn = document.getElementById('saveBtn');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = '✅ Saved';
+        saveBtn.style.background = 'rgba(76, 217, 100, 0.6)';
+        setTimeout(() => {
+          saveBtn.textContent = originalText;
+          saveBtn.style.background = '';
+        }, 1500);
       }
     });
 
@@ -417,15 +502,9 @@
       }
     });
 
-    // Open save directory
-    document.getElementById('openDirBtn').addEventListener('click', () => {
-      ipcRenderer.send('open-directory');
-    });
-
-    // Close float window (bottom button) - auto-save before closing
-    document.getElementById('closeBtn').addEventListener('click', async () => {
-      await saveNote();
-      ipcRenderer.send('close-float');
+    // Open memo window
+    document.getElementById('openMemoBtn').addEventListener('click', () => {
+      ipcRenderer.send('open-memo');
     });
 
     // Close float window (top button) - auto-save before closing
@@ -443,6 +522,58 @@
     document.getElementById('minimizeBtn').addEventListener('click', () => {
       ipcRenderer.send('minimize-float');
     });
+
+    // Adjust window height based on content
+    function adjustWindowHeight() {
+      // Use requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Debug: log clipboard data structure
+          console.log('adjustWindowHeight called, currentData:', {
+            hasCurrentData: !!currentData,
+            hasClipboard: !!(currentData && currentData.clipboard),
+            types: currentData?.clipboard?.types,
+            hasImagePath: !!(currentData?.clipboard?.imagePath)
+          });
+
+          // Check if clipboard contains only text (no images)
+          const isTextOnly = currentData &&
+                            currentData.clipboard &&
+                            currentData.clipboard.types &&
+                            currentData.clipboard.types.includes('text') &&
+                            !currentData.clipboard.types.includes('image');
+
+          let adjustedHeight;
+
+          if (isTextOnly) {
+            // Fixed height for text-only clipboard
+            adjustedHeight = 420;
+            console.log('✅ Text-only clipboard detected: using fixed height 420px', {
+              types: currentData.clipboard.types
+            });
+          } else {
+            // Auto-calculate height for other cases
+            const documentHeight = document.documentElement.scrollHeight;
+            const bodyHeight = document.body.scrollHeight;
+            const contentHeight = Math.max(documentHeight, bodyHeight);
+
+            // Limit to reasonable range (min 250px, max 700px)
+            adjustedHeight = Math.min(Math.max(contentHeight, 250), 700);
+
+            console.log('📏 Auto-height calculation:', {
+              isTextOnly,
+              types: currentData?.clipboard?.types,
+              documentHeight,
+              bodyHeight,
+              contentHeight,
+              adjustedHeight
+            });
+          }
+
+          ipcRenderer.send('adjust-float-height', adjustedHeight);
+        });
+      });
+    }
 
     // Listen for window close event to auto-save
     window.addEventListener('beforeunload', async (e) => {

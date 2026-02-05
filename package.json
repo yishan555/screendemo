@@ -1,7 +1,7 @@
 {
-  "name": "screenshot-tray-tool",
-  "version": "1.0.0",
-  "description": "Windows 11 托盘截图工具 - 支持全局快捷键截图、剪贴板保存与浮窗操作",
+  "name": "screendemo",
+  "version": "2.0.0",
+  "description": "Windows 11 截图与记录管理工具 - 支持全局快捷键截图、剪贴板保存、智能浮窗与 Memo 记录管理",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron ."
@@ -11,7 +11,10 @@
     "screenshot",
     "tray",
     "clipboard",
-    "windows"
+    "windows",
+    "memo",
+    "notes",
+    "todo"
   ],
   "author": "",
   "license": "MIT",

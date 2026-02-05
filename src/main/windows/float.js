@@ -41,6 +41,10 @@ class FloatWindow {
       skipTaskbar: config.FLOAT_WINDOW.skipTaskbar,
       transparent: config.FLOAT_WINDOW.transparent,
       backgroundColor: config.FLOAT_WINDOW.backgroundColor,
+      minWidth: config.FLOAT_WINDOW.width,  // 限制最小宽度
+      maxWidth: config.FLOAT_WINDOW.width,  // 限制最大宽度（防止用户手动拉宽）
+      minHeight: 250,  // 最小高度
+      maxHeight: 700,  // 最大高度
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -77,6 +81,7 @@ class FloatWindow {
    */
   show(data) {
     this.captureData = data;
+    this.isEditMode = false; // Mark as new capture mode
 
     if (!this.window || this.window.isDestroyed()) {
       this.create();
@@ -98,12 +103,49 @@ class FloatWindow {
   }
 
   /**
+   * Show float window for editing existing record
+   * @param {Object} record - Existing record to edit
+   */
+  showForEdit(record) {
+    this.captureData = record;
+    this.isEditMode = true; // Mark as edit mode
+
+    if (!this.window || this.window.isDestroyed()) {
+      this.create();
+    }
+
+    // Send data after page finishes loading
+    if (this.window.webContents.isLoading()) {
+      this.window.webContents.once('did-finish-load', () => {
+        this.sendEditData();
+      });
+    } else {
+      this.sendEditData();
+    }
+
+    this.window.show();
+    this.window.focus();
+    // 确保显示时位于最上层
+    this.window.setAlwaysOnTop(true, 'screen-saver');
+  }
+
+  /**
    * Send screenshot data to renderer process
    */
   sendCaptureData() {
     if (this.window && !this.window.isDestroyed() && this.captureData) {
       this.window.webContents.send('capture-data', this.captureData);
       logger.debug('Screenshot data sent to float window');
+    }
+  }
+
+  /**
+   * Send edit data to renderer process
+   */
+  sendEditData() {
+    if (this.window && !this.window.isDestroyed() && this.captureData) {
+      this.window.webContents.send('edit-data', this.captureData);
+      logger.debug('Edit data sent to float window');
     }
   }
 
@@ -171,6 +213,13 @@ class FloatWindow {
       capture.writeClipboard(text);
     });
 
+    // Open memo window
+    ipcMain.on('open-memo', () => {
+      logger.info('Opening memo window from float window');
+      const memoWindow = require('./memo');
+      memoWindow.show();
+    });
+
     // Open save directory
     ipcMain.on('open-directory', () => {
       const dir = storage.getCapturesDir();
@@ -183,10 +232,10 @@ class FloatWindow {
     });
 
     // Save note to metadata
-    ipcMain.handle('save-note', async (event, { metadataPath, noteText }) => {
-      logger.info('Saving note to metadata:', metadataPath);
+    ipcMain.handle('save-note', async (event, { metadataPath, noteText, isEditMode = false }) => {
+      logger.info('Saving note to metadata:', metadataPath, isEditMode ? '(edit mode)' : '(new capture)');
       try {
-        const success = await storage.updateNote(metadataPath, noteText);
+        const success = await storage.updateNote(metadataPath, noteText, isEditMode);
         if (success) {
           logger.info('Note saved successfully');
         } else {
@@ -209,6 +258,27 @@ class FloatWindow {
     ipcMain.on('minimize-float', () => {
       logger.info('Minimizing float window');
       this.minimize();
+    });
+
+    // Adjust float window height
+    ipcMain.on('adjust-float-height', (event, height) => {
+      if (this.window && !this.window.isDestroyed()) {
+        const currentSize = this.window.getSize();
+        const newHeight = Math.min(Math.max(height, 250), 700); // Min 250px, Max 700px
+        this.window.setSize(currentSize[0], newHeight);
+        logger.debug(`Float window height adjusted to: ${newHeight}px`);
+      }
+    });
+
+    // Toggle DevTools for float window
+    ipcMain.on('toggle-devtools-float', () => {
+      if (this.window && !this.window.isDestroyed()) {
+        if (this.window.webContents.isDevToolsOpened()) {
+          this.window.webContents.closeDevTools();
+        } else {
+          this.window.webContents.openDevTools({ mode: 'detach' });
+        }
+      }
     });
 
     logger.debug('Float window IPC listeners setup');

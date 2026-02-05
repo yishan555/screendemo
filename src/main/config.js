@@ -13,7 +13,7 @@ module.exports = {
   FLOAT_WINDOW: {
     width: 480,
     height: 620,
-    resizable: false,
+    resizable: true,  // 允许代码动态调整高度
     frame: false,
     alwaysOnTop: true,
     skipTaskbar: false,  // 允许在任务栏显示
