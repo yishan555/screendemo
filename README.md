@@ -31,8 +31,7 @@
 - **自定义图标**：统一的图标系统（PNG 格式）
 - **无边框设计**：macOS 风格的控制按钮
 - **流畅动画**：按钮悬停、点击等交互动画
-<img width="2424" height="1355" alt="image" src="https://github.com/user-attachments/assets/4a78232a-824d-4b4d-9c99-ce76ea421ca2" />
-<img width="1796" height="1266" alt="屏幕截图 2026-02-09 154753" src="https://github.com/user-attachments/assets/4b36ef76-d96b-47b8-b9fd-2e7567a06f48" />
+<img width="1554" height="505" alt="image" src="https://github.com/user-attachments/assets/26405bad-1b36-45ff-8bb6-1a0b1d3c3f2f" />
 
 ## 🚀 快速开始
 
