@@ -18,6 +18,11 @@
       overflow: hidden;
     }
 
+    /* Body background for collapsed state */
+    body.drawer-collapsed {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
     /* Title bar */
     .titlebar {
       -webkit-app-region: drag;
@@ -81,6 +86,95 @@
       background: #f5a623;
       box-shadow: 0 0 12px rgba(245, 166, 35, 0.8);
       transform: scale(1.1);
+    }
+
+    .control-btn.pin {
+      width: 20px;
+      height: 20px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      background-image: url('../assets/icons/pin.ico');
+      background-size: 16px 16px;
+      background-position: center;
+      background-repeat: no-repeat;
+      border-radius: 0;
+    }
+
+    .control-btn.pin:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      box-shadow: none;
+      background-image: url('../assets/icons/pin.ico');
+      background-size: 16px 16px;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    body.drawer-pinned .control-btn.pin {
+      background-image: url('../assets/icons/unpin.ico');
+      background-size: 16px 16px;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    body.drawer-pinned .control-btn.pin:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      box-shadow: none;
+      background-image: url('../assets/icons/unpin.ico');
+      background-size: 16px 16px;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    /* Drawer handle (only visible when collapsed) */
+    .drawer-handle {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      width: 100%;
+      height: 50px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 9999;
+      -webkit-app-region: no-drag; /* Change to no-drag to allow clicks, we'll handle dragging via JS */
+    }
+
+    .handle-indicator {
+      width: 6px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 3px;
+    }
+
+    /* State-specific visibility */
+    body.drawer-collapsed .drawer-handle {
+      display: flex;
+    }
+
+    body.drawer-collapsed .titlebar,
+    body.drawer-collapsed .filter-tabs,
+    body.drawer-collapsed .list-container,
+    body.drawer-collapsed .add-btn,
+    body.drawer-collapsed .modal-overlay {
+      display: none;
+    }
+
+    body.drawer-expanded .drawer-handle,
+    body.drawer-pinned .drawer-handle {
+      display: none;
+    }
+
+    /* Titlebar drag behavior - only in expanded/pinned */
+    body.drawer-collapsed .titlebar {
+      -webkit-app-region: no-drag;
+    }
+
+    body.drawer-expanded .titlebar,
+    body.drawer-pinned .titlebar {
+      -webkit-app-region: drag;
     }
 
     /* Filter tabs */
@@ -491,6 +585,11 @@
   </style>
 </head>
 <body>
+  <!-- Drawer handle (only visible when collapsed) -->
+  <div id="drawerHandle" class="drawer-handle">
+    <div class="handle-indicator"></div>
+  </div>
+
   <!-- Title bar -->
   <div class="titlebar">
     <div class="titlebar-title">
@@ -498,6 +597,7 @@
       Memo
     </div>
     <div class="titlebar-controls">
+      <button class="control-btn pin" id="pinBtn" title="Pin/Unpin"></button>
       <button class="control-btn minimize" id="minimizeBtn" title="Minimize"></button>
       <button class="control-btn" id="closeBtn" title="Close"></button>
     </div>
@@ -540,13 +640,107 @@
     let currentFilter = 'all';
     let records = [];
     let draggedItem = null;
+    let currentDrawerState = 'collapsed';  // Track drawer state
 
     // Initialize on load
     window.addEventListener('DOMContentLoaded', () => {
       loadRecords(currentFilter);
       setupEventListeners();
       setupModalListeners();
+      setupDrawerListeners();
     });
+
+    // Setup drawer event listeners
+    function setupDrawerListeners() {
+      // Request drawer config to determine if drawer mode is enabled
+      ipcRenderer.invoke('memo:get-drawer-config').then(drawerConfig => {
+        const pinBtn = document.getElementById('pinBtn');
+
+        if (!drawerConfig || !drawerConfig.enabled) {
+          // Hide pin button if drawer mode is not enabled
+          if (pinBtn) {
+            pinBtn.style.display = 'none';
+          }
+          console.log('Drawer mode is disabled, hiding pin button');
+          return;
+        }
+
+        console.log('Drawer mode is enabled');
+      }).catch(err => {
+        console.error('Failed to get drawer config:', err);
+      });
+
+      // Handle click and dragging
+      const drawerHandle = document.getElementById('drawerHandle');
+      if (drawerHandle) {
+        let isRightDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let startWindowX = 0;
+        let startWindowY = 0;
+
+        drawerHandle.addEventListener('mousedown', (e) => {
+          if (e.button === 0) { // Left click
+            console.log('Handle left clicked, toggling');
+            ipcRenderer.send('drawer:toggle');
+          } else if (e.button === 2) { // Right click
+            isRightDragging = true;
+            startX = e.screenX;
+            startY = e.screenY;
+            ipcRenderer.invoke('memo:get-window-pos').then(pos => {
+              startWindowX = pos.x;
+              startWindowY = pos.y;
+            });
+            drawerHandle.style.cursor = 'move';
+          }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (isRightDragging) {
+            const deltaX = e.screenX - startX;
+            const deltaY = e.screenY - startY;
+            ipcRenderer.send('drawer:update-pos', {
+              x: startWindowX + deltaX,
+              y: startWindowY + deltaY
+            });
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (isRightDragging) {
+            isRightDragging = false;
+            drawerHandle.style.cursor = 'pointer';
+          }
+        });
+
+        // Prevent context menu on handle to allow right-click dragging
+        drawerHandle.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+        });
+      }
+
+      // Pin button click
+      const pinBtn = document.getElementById('pinBtn');
+      if (pinBtn) {
+        pinBtn.addEventListener('click', () => {
+          console.log('Pin button clicked, current state:', currentDrawerState);
+          ipcRenderer.send('drawer:pin');
+        });
+      }
+
+      // Listen for state changes from main process
+      ipcRenderer.on('drawer:state-changed', (event, { state, isPinned }) => {
+        currentDrawerState = state;
+
+        // Update body classes
+        document.body.classList.remove('drawer-collapsed', 'drawer-expanded', 'drawer-pinned');
+        document.body.classList.add(`drawer-${state}`);
+
+        console.log('Drawer state changed to:', state);
+      });
+
+      // Mouse leave window - removed immediate collapse
+    }
 
     // Setup all event listeners
     function setupEventListeners() {
@@ -556,7 +750,14 @@
       });
 
       document.getElementById('closeBtn').addEventListener('click', () => {
-        ipcRenderer.send('close-memo');
+        // Close button behavior depends on drawer state
+        if (currentDrawerState === 'pinned') {
+          // Unpin first, then collapse
+          ipcRenderer.send('drawer:unpin');
+        } else {
+          // Collapse or close
+          ipcRenderer.send('close-memo');
+        }
       });
 
       // Filter tabs

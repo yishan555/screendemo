@@ -27,7 +27,7 @@ class SettingsWindow {
 
     this.window = new BrowserWindow({
       width: 600,
-      height: 500,
+      height: 700,
       resizable: false,
       frame: false,
       alwaysOnTop: true,
@@ -118,7 +118,8 @@ class SettingsWindow {
       logger.debug('Settings requested:', config);
       return {
         shortcut: config.shortcut,
-        customSavePath: config.customSavePath
+        customSavePath: config.customSavePath,
+        drawer: config.drawer
       };
     });
 
@@ -129,9 +130,16 @@ class SettingsWindow {
 
         const oldConfig = configManager.getAll();
 
+        // Deep merge drawer settings to preserve state and position
+        const drawerUpdate = {
+          ...oldConfig.drawer,
+          ...newSettings.drawer
+        };
+
         const success = configManager.update({
           shortcut: newSettings.shortcut,
-          customSavePath: newSettings.customSavePath
+          customSavePath: newSettings.customSavePath,
+          drawer: drawerUpdate
         });
 
         if (success) {
@@ -153,6 +161,17 @@ class SettingsWindow {
           if (oldConfig.customSavePath !== newSettings.customSavePath) {
             storage.init(newSettings.customSavePath);
             logger.info('Storage path updated');
+          }
+
+          // Handle drawer mode changes
+          if (oldConfig.drawer.enabled !== newSettings.drawer.enabled) {
+            logger.info('Drawer mode changed, memo window will recreate on next open');
+            // Close memo window if open, it will recreate with new mode
+            const memoWindow = require('./memo');
+            if (memoWindow.window && !memoWindow.window.isDestroyed()) {
+              memoWindow.window.close();
+              logger.info('Closed memo window for mode change');
+            }
           }
 
           return true;

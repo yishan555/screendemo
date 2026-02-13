@@ -4,7 +4,7 @@
  */
 
 const screenshot = require('screenshot-desktop');
-const { clipboard } = require('electron');
+const { clipboard, screen } = require('electron');
 const logger = require('./logger');
 const storage = require('./storage');
 
@@ -65,17 +65,30 @@ class Capture {
    */
   async captureScreen() {
     try {
-      // screenshot-desktop captures primary screen by default
-      // Returns Buffer or Array<Buffer> (for multiple screens)
-      const imgBuffer = await screenshot({ format: 'png' });
+      // Get all displays
+      const displays = await screenshot.listDisplays();
+      logger.debug('Available displays:', displays.length);
 
-      // If returns array (multiple screens), take first one
-      if (Array.isArray(imgBuffer)) {
-        logger.debug('Multiple screens detected, using primary screen');
-        return imgBuffer[0];
+      // Get current cursor position to determine focused screen
+      const cursorPoint = screen.getCursorScreenPoint();
+      const currentDisplay = screen.getDisplayNearestPoint(cursorPoint);
+      logger.debug('Current cursor display:', currentDisplay.id);
+
+      // Find the matching display in screenshot-desktop's list
+      // screenshot-desktop's IDs might not match Electron's, so we use proximity or index
+      // Most common reliable way is to find by name or coordinates if available,
+      // but screenshot-desktop usually matches the order of Electron's screen.getAllDisplays()
+      const electronDisplays = screen.getAllDisplays();
+      const displayIndex = electronDisplays.findIndex(d => d.id === currentDisplay.id);
+
+      if (displayIndex !== -1 && displays[displayIndex]) {
+        logger.info(`Capturing screen index: ${displayIndex} (Focused screen)`);
+        return await screenshot({ screen: displays[displayIndex].id, format: 'png' });
       }
 
-      return imgBuffer;
+      // Fallback: capture primary
+      logger.warn('Could not match focused screen index, falling back to default');
+      return await screenshot({ format: 'png' });
     } catch (error) {
       logger.error('Screen capture failed:', error.message);
       throw error;

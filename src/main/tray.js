@@ -66,6 +66,17 @@ class TrayManager {
         type: 'separator'
       },
       {
+        label: 'Settings',
+        click: () => {
+          logger.info('Opening Settings Window via tray menu');
+          const settingsWindow = require('./windows/settings');
+          settingsWindow.show();
+        }
+      },
+      {
+        type: 'separator'
+      },
+      {
         label: 'Exit',
         click: () => {
           logger.info('Exit via tray menu');

@@ -286,6 +286,54 @@
       </div>
     </div>
 
+    <!-- Drawer Settings -->
+    <div class="section">
+      <div class="section-title">🗂️ Sidebar Drawer Mode</div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="drawerEnabled" style="margin-right: 8px;">
+          Enable Sidebar Drawer Mode
+        </label>
+        <div class="form-hint">When enabled, Memo window docks to the right edge of screen with collapsible handle</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Handle Width (Collapsed State)</label>
+        <input type="number" class="form-input" id="handleWidth" min="5" max="50" value="10">
+        <div class="form-hint">Width in pixels when drawer is collapsed (5-50px)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Expanded Width</label>
+        <input type="number" class="form-input" id="expandedWidth" min="200" max="800" value="420">
+        <div class="form-hint">Width in pixels when drawer is expanded (200-800px)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="autoCollapse" style="margin-right: 8px;">
+          Auto-collapse on blur
+        </label>
+        <div class="form-hint">Automatically collapse drawer when it loses focus</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Auto-collapse Delay (ms)</label>
+        <input type="number" class="form-input" id="autoCollapseDelay" min="0" max="5000" step="100" value="1000">
+        <div class="form-hint">Delay before auto-collapse in milliseconds (0-5000ms)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Dock to Screen</label>
+        <select class="form-input" id="dockScreen">
+          <option value="cursor">Cursor's screen (follows mouse)</option>
+          <option value="primary">Primary screen (always)</option>
+        </select>
+        <div class="form-hint">Choose which screen the drawer docks to</div>
+      </div>
+    </div>
+
     <!-- Action Buttons -->
     <div class="btn-group">
       <button class="btn-reset" id="resetBtn">🔄 Reset to Default</button>
@@ -316,6 +364,16 @@
         currentPathEl.textContent = `Current: ${settings.customSavePath}`;
       } else {
         currentPathEl.textContent = 'Current: Using default location (AppData)';
+      }
+
+      // Load drawer settings
+      if (settings.drawer) {
+        document.getElementById('drawerEnabled').checked = settings.drawer.enabled !== false;
+        document.getElementById('handleWidth').value = settings.drawer.handleWidth || 10;
+        document.getElementById('expandedWidth').value = settings.drawer.expandedWidth || 420;
+        document.getElementById('autoCollapse').checked = settings.drawer.autoCollapse !== false;
+        document.getElementById('autoCollapseDelay').value = settings.drawer.autoCollapseDelay || 1000;
+        document.getElementById('dockScreen').value = settings.drawer.dockScreen || 'cursor';
       }
     }
 
@@ -380,7 +438,15 @@
     document.getElementById('saveBtn').addEventListener('click', async () => {
       const newSettings = {
         shortcut: document.getElementById('shortcutInput').value,
-        customSavePath: document.getElementById('savePathInput').value
+        customSavePath: document.getElementById('savePathInput').value,
+        drawer: {
+          enabled: document.getElementById('drawerEnabled').checked,
+          handleWidth: parseInt(document.getElementById('handleWidth').value),
+          expandedWidth: parseInt(document.getElementById('expandedWidth').value),
+          autoCollapse: document.getElementById('autoCollapse').checked,
+          autoCollapseDelay: parseInt(document.getElementById('autoCollapseDelay').value),
+          dockScreen: document.getElementById('dockScreen').value
+        }
       };
 
       const success = await ipcRenderer.invoke('save-settings', newSettings);
@@ -399,7 +465,15 @@
       if (confirmed) {
         const defaultSettings = {
           shortcut: 'CommandOrControl+Shift+X',
-          customSavePath: ''
+          customSavePath: '',
+          drawer: {
+            enabled: true,
+            handleWidth: 10,
+            expandedWidth: 420,
+            autoCollapse: true,
+            autoCollapseDelay: 1000,
+            dockScreen: 'cursor'
+          }
         };
         updateUI(defaultSettings);
       }

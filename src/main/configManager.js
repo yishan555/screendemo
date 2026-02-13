@@ -15,7 +15,26 @@ class ConfigManager {
     this.defaultConfig = {
       shortcut: 'CommandOrControl+Shift+X',
       customSavePath: '',
-      logLevel: 'info'
+      logLevel: 'info',
+      // Sidebar drawer settings
+      drawer: {
+        enabled: true,  // Whether sidebar drawer mode is enabled
+        handleWidth: 10,  // Width of the collapsed handle in pixels
+        handleHeight: 50, // Height of the collapsed handle in pixels
+        expandedWidth: 420,  // Width when expanded
+        expandedHeight: 600, // Height when expanded
+        autoCollapse: true,  // Auto-collapse when window loses focus
+        autoCollapseDelay: 1000,  // Delay before auto-collapse (ms)
+        hoverToExpand: true,  // Auto-expand on hover
+        hoverDelay: 500,  // Hover delay before expanding (ms)
+        dockScreen: 'cursor',  // 'primary' or 'cursor' - which screen to dock to
+        state: 'collapsed',  // Last state: 'collapsed', 'expanded', or 'pinned'
+        position: null,  // Pinned position { x, y }, null if not pinned
+        lastDockX: null, // Last saved X for handle
+        lastDockY: null, // Last saved Y for handle
+        lastExpandedX: null, // Last saved X for expanded
+        lastExpandedY: null  // Last saved Y for expanded
+      }
     };
   }
 
@@ -46,6 +65,21 @@ class ConfigManager {
   }
 
   /**
+   * Deep merge helper - properly merges nested objects
+   */
+  deepMerge(target, source) {
+    const result = { ...target };
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        result[key] = this.deepMerge(target[key] || {}, source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  }
+
+  /**
    * Load config from file
    */
   load() {
@@ -53,8 +87,8 @@ class ConfigManager {
       const data = fs.readFileSync(this.configPath, 'utf-8');
       const loadedConfig = JSON.parse(data);
 
-      // Merge with default config to ensure all keys exist
-      this.config = { ...this.defaultConfig, ...loadedConfig };
+      // Deep merge with default config to ensure all keys exist (including nested objects)
+      this.config = this.deepMerge(this.defaultConfig, loadedConfig);
 
       return this.config;
     } catch (error) {
