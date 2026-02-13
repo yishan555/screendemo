@@ -75,6 +75,12 @@ if (!gotTheLock) {
       logger.info('Captures directory:', capturesDir);
       logger.info('========================================');
 
+      // 9. Pre-create float window for performance (after 2 seconds)
+      setTimeout(() => {
+        logger.info('Pre-creating float window...');
+        floatWindow.initialize();
+      }, 2000);
+
     } catch (error) {
       logger.error('Application initialization failed:', error.message);
       logger.error(error.stack);
@@ -103,6 +109,7 @@ if (!gotTheLock) {
   app.on('will-quit', () => {
     logger.info('Application shutting down, cleaning up resources...');
     shortcut.unregisterAll();
+    floatWindow.destroy(); // Destroy float window on app quit
     tray.destroy();
     logger.shutdown(); // Close logger system
   });

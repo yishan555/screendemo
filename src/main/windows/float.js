@@ -21,26 +21,36 @@ class FloatWindow {
    */
   create() {
     if (this.window && !this.window.isDestroyed()) {
-      this.window.show();
+      // Window already exists, just ensure it's ready
       return;
     }
 
-    // 获取鼠标位置
-    const cursorPoint = screen.getCursorScreenPoint();
-    const x = cursorPoint.x + config.FLOAT_OFFSET.x;
-    const y = cursorPoint.y + config.FLOAT_OFFSET.y;
+    // 获取鼠标位置（如果没有窗口，使用屏幕中心）
+    let x, y;
+    try {
+      const cursorPoint = screen.getCursorScreenPoint();
+      x = cursorPoint.x + config.FLOAT_OFFSET.x;
+      y = cursorPoint.y + config.FLOAT_OFFSET.y;
+    } catch (e) {
+      // Fallback to screen center if cursor position fails
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { width, height } = primaryDisplay.workAreaSize;
+      x = Math.floor((width - config.FLOAT_WINDOW.width) / 2);
+      y = Math.floor((height - config.FLOAT_WINDOW.height) / 2);
+    }
 
     this.window = new BrowserWindow({
       width: config.FLOAT_WINDOW.width,
       height: config.FLOAT_WINDOW.height,
       x: x,
       y: y,
+      show: false,  // 不立即显示，等内容加载完成后再显示
       resizable: config.FLOAT_WINDOW.resizable,
       frame: config.FLOAT_WINDOW.frame,
       alwaysOnTop: config.FLOAT_WINDOW.alwaysOnTop,
       skipTaskbar: config.FLOAT_WINDOW.skipTaskbar,
       transparent: config.FLOAT_WINDOW.transparent,
-      backgroundColor: config.FLOAT_WINDOW.backgroundColor,
+      backgroundColor: '#667eea',  // 使用渐变主色调，避免白屏
       minWidth: config.FLOAT_WINDOW.width,  // 限制最小宽度
       maxWidth: config.FLOAT_WINDOW.width,  // 限制最大宽度（防止用户手动拉宽）
       minHeight: 250,  // 最小高度
@@ -59,7 +69,13 @@ class FloatWindow {
     const htmlPath = path.join(__dirname, '../../renderer/float.html');
     this.window.loadFile(htmlPath);
 
-    // 窗口关闭事件
+    // 页面加载完成后标记为就绪（但不显示）
+    this.window.once('ready-to-show', () => {
+      this.isReady = true;
+      logger.info('Float window content loaded and ready');
+    });
+
+    // 窗口关闭事件（实际上不会触发，因为我们用 hide）
     this.window.on('closed', () => {
       this.window = null;
       this.captureData = null;
@@ -72,7 +88,15 @@ class FloatWindow {
       logger.info('Float window restored from taskbar, re-applied always-on-top');
     });
 
-    logger.info('Float window created');
+    logger.info('Float window created (pre-initialized)');
+  }
+
+  /**
+   * Initialize - pre-create window for faster display
+   */
+  initialize() {
+    logger.info('Pre-creating float window for performance...');
+    this.create();
   }
 
   /**
@@ -85,6 +109,16 @@ class FloatWindow {
 
     if (!this.window || this.window.isDestroyed()) {
       this.create();
+    }
+
+    // Update window position to current mouse location
+    try {
+      const cursorPoint = screen.getCursorScreenPoint();
+      const x = cursorPoint.x + config.FLOAT_OFFSET.x;
+      const y = cursorPoint.y + config.FLOAT_OFFSET.y;
+      this.window.setPosition(x, y);
+    } catch (e) {
+      logger.warn('Failed to update window position:', e.message);
     }
 
     // Send data after page finishes loading
@@ -112,6 +146,16 @@ class FloatWindow {
 
     if (!this.window || this.window.isDestroyed()) {
       this.create();
+    }
+
+    // Update window position to current mouse location
+    try {
+      const cursorPoint = screen.getCursorScreenPoint();
+      const x = cursorPoint.x + config.FLOAT_OFFSET.x;
+      const y = cursorPoint.y + config.FLOAT_OFFSET.y;
+      this.window.setPosition(x, y);
+    } catch (e) {
+      logger.warn('Failed to update window position:', e.message);
     }
 
     // Send data after page finishes loading
@@ -185,11 +229,24 @@ class FloatWindow {
   }
 
   /**
-   * Close float window
+   * Close float window (hide instead of destroy for reuse)
    */
   close() {
     if (this.window && !this.window.isDestroyed()) {
+      this.window.hide();
+      logger.info('Float window hidden (reusable)');
+    }
+  }
+
+  /**
+   * Destroy float window completely (only used on app quit)
+   */
+  destroy() {
+    if (this.window && !this.window.isDestroyed()) {
       this.window.close();
+      this.window = null;
+      this.captureData = null;
+      logger.info('Float window destroyed');
     }
   }
 
