@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { app } = require('electron');
 const config = require('./config');
 
 const LOG_LEVELS = {
@@ -25,12 +26,12 @@ class Logger {
 
   /**
    * 初始化日志系统
-   * @param {string} projectRoot - 项目根目录路径
    */
-  init(projectRoot) {
+  init() {
     try {
-      // Create logs folder in project root
-      this.logDir = path.join(projectRoot, 'logs');
+      // Create logs folder in user data directory
+      const userDataPath = app.getPath('userData');
+      this.logDir = path.join(userDataPath, 'logs');
 
       if (!fs.existsSync(this.logDir)) {
         fs.mkdirSync(this.logDir, { recursive: true });

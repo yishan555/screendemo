@@ -4,7 +4,60 @@
   "description": "Windows 11 截图与记录管理工具 - 支持全局快捷键截图、剪贴板保存、智能浮窗与 Memo 记录管理",
   "main": "src/main/index.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder build --win",
+    "build:fast": "electron-builder build --win --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.yishan.screendemo",
+    "productName": "ScreenDemo",
+    "copyright": "Copyright © 2026 yishan",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "src/assets/icons/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "ScreenDemo",
+      "installerIcon": "src/assets/icons/screendemo.ico",
+      "uninstallerIcon": "src/assets/icons/screendemo.ico",
+      "uninstallDisplayName": "Uninstall ScreenDemo",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}_Portable_${version}.${ext}"
+    },
+    "asar": true
   },
   "keywords": [
     "electron",
@@ -19,7 +72,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "electron": "27.0.0",
     "screenshot-desktop": "^1.12.7"
+  },
+  "devDependencies": {
+    "electron": "27.0.0",
+    "electron-builder": "^26.7.0"
   }
 }

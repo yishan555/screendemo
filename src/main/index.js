@@ -30,9 +30,8 @@ if (!gotTheLock) {
   // Application initialization
   app.whenReady().then(() => {
     try {
-      // 0. Initialize logger system (in project root)
-      const projectRoot = app.getAppPath();
-      logger.init(projectRoot);
+      // 0. Initialize logger system
+      logger.init();
 
       logger.info('========================================');
       logger.info('Screenshot Tool Starting...');
