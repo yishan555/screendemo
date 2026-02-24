@@ -21,7 +21,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "src/assets/icons/icon.png",
+      "icon": "src/assets/icons/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -49,15 +49,18 @@
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "ScreenDemo",
-      "installerIcon": "src/assets/icons/screendemo.ico",
-      "uninstallerIcon": "src/assets/icons/screendemo.ico",
+      "installerIcon": "src/assets/icons/icon.ico",
+      "uninstallerIcon": "src/assets/icons/icon.ico",
       "uninstallDisplayName": "Uninstall ScreenDemo",
       "deleteAppDataOnUninstall": false
     },
     "portable": {
       "artifactName": "${productName}_Portable_${version}.${ext}"
     },
-    "asar": true
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/screenshot-desktop/lib/win32"
+    ]
   },
   "keywords": [
     "electron",
