@@ -1,0 +1,22 @@
+@use './liui-fix.scss';
+@use './liui-improve.scss';
+@use './utils.scss';
+@use './components.scss';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizelegibility;
+}
+
+ul,
+ol {
+  list-style: none;
+}

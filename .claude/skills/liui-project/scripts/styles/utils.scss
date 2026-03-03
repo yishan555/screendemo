@@ -1,0 +1,100 @@
+// 工具类
+
+// 解决flex wrap场景下div宽度不是100%的问题
+.fn-w-full {
+  width: 100% !important;
+}
+
+// 12栅格的工具类，注意如果容器flex-flow为row wrap并且gap不为0，则12栅格会换行，no-wrap下没问题。
+.fn-w-1 {
+  flex: unset !important;
+  width: calc(100% / 12) !important;
+}
+
+.fn-w-2 {
+  flex: unset !important;
+  width: calc(2 * 100% / 12) !important;
+}
+
+.fn-w-3 {
+  flex: unset !important;
+  width: calc(3 * 100% / 12) !important;
+}
+
+.fn-w-4 {
+  flex: unset !important;
+  width: calc(4 * 100% / 12) !important;
+}
+
+.fn-w-5 {
+  flex: unset !important;
+  width: calc(5 * 100% / 12) !important;
+}
+
+.fn-w-6 {
+  flex: unset !important;
+  width: calc(6 * 100% / 12) !important;
+}
+
+.fn-w-7 {
+  flex: unset !important;
+  width: calc(7 * 100% / 12) !important;
+}
+
+.fn-w-8 {
+  flex: unset !important;
+  width: calc(8 * 100% / 12) !important;
+}
+
+.fn-w-9 {
+  width: calc(9 * 100% / 12) !important;
+}
+
+.fn-w-10 {
+  flex: unset !important;
+  width: calc(10 * 100% / 12) !important;
+}
+
+.fn-w-11 {
+  flex: unset !important;
+  width: calc(11 * 100% / 12) !important;
+}
+
+.fn-w-12 {
+  flex: unset !important;
+  width: 100% !important;
+}
+
+.fn-flex-1 {
+  flex: 1 !important;
+}
+
+// 不换行
+.is-nowrap {
+  flex-flow: row nowrap !important;
+}
+
+// 上下排列
+.is-column {
+  flex-flow: column nowrap !important;
+}
+
+// 恢复默认宽度
+.fn-w-unset {
+  width: unset !important;
+}
+
+// 超出两行出省略号
+.fn-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: unset;
+}
+// 超出三行出省略号
+.fn-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: unset;
+}

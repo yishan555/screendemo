@@ -1,0 +1,330 @@
+/* stylelint-disable no-descending-specificity */
+// 非Vue组件的组件样式
+
+/* 公共样式 begin */
+
+// 必填项标识，红色星号
+.is-asterisk {
+  margin-right: 2px;
+  color: var(--li-color-error-700);
+}
+
+// 针对弹性布局，元素右对齐
+.is-right {
+  margin-left: auto;
+}
+
+/* 公共样式 end */
+
+/* page样式 begin */
+.a-page {
+  overflow: auto;
+  display: flex;
+  flex-flow: row wrap;
+  gap: 16px;
+  place-content: start flex-start;
+  align-items: flex-start;
+
+  padding: 16px;
+
+  // 子元素使用容器的gap作为间距
+  > .li-button + .li-button {
+    margin-left: 0;
+  }
+
+  // 如果内部有元素希望自动撑开，page需要修改布局方式
+  &:has(.is-full) {
+    flex: 1;
+    flex-flow: column;
+  }
+}
+
+// 如果上面有页面标题栏，则去掉上间距
+.li-pro-layout-header + .a-page {
+  padding-top: 0;
+}
+
+/* page样式 end */
+
+/* 卡片样式 begin */
+.a-card {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 8px;
+  place-content: start flex-start;
+  align-items: flex-start;
+
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+
+  background-color: white;
+  box-shadow: var(--li-elevation-100);
+
+  // 子元素使用容器的gap作为间距
+  > .li-button + .li-button {
+    margin-left: 0;
+  }
+
+  // 灰色卡片样式
+  &.is-dark {
+    background-color: var(--li-color-on-light-100);
+    box-shadow: unset;
+  }
+  // 间距为16px的卡片
+  &.is-loose {
+    gap: 16px;
+  }
+
+  // 卡片内部滚动
+  &.is-full {
+    overflow: auto;
+    flex: 1;
+    height: 100%;
+  }
+}
+
+/* 卡片样式 end */
+
+/* 区块样式 begin */
+.a-block {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 8px;
+  place-content: start flex-start;
+  align-items: flex-start;
+
+  width: 100%;
+  // 子元素使用容器的gap作为间距
+  > .li-button + .li-button {
+    margin-left: 0;
+  }
+
+  // 间距为16px的块
+  &.is-loose {
+    gap: 16px;
+  }
+
+  // 区块内部滚动
+  &.is-full {
+    overflow: auto;
+    flex: 1;
+    height: 100%;
+  }
+}
+
+/* 区块样式 end */
+
+/* 标题样式 begin */
+
+// 主标题样式
+.a-header {
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  height: 32px;
+
+  font: var(--li-font-sub-heading);
+}
+
+// 子标题样式，加粗即可
+.a-sub-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  font: var(--li-font-body-strong);
+}
+
+/* 标题样式 end */
+
+/* 表格样式 begin */
+
+// 表格组件
+.a-table {
+  display: flex;
+  flex-flow: column;
+  gap: 16px;
+  width: 100%;
+
+  // 如果表格希望撑满整个区域，添加该类名
+  &.is-full {
+    overflow: hidden;
+    flex: 1;
+
+    .a-table-main {
+      overflow: hidden;
+      flex: 1;
+
+      // 如果是非表格的容器，允许滚动
+      > :first-child:not(.li-table, .a-table-toolbar),
+      > .a-table-toolbar:first-child + :not(.li-table) {
+        overflow: auto;
+      }
+    }
+
+    .li-table {
+      flex: 1;
+    }
+    // 内联表格模式下，form包裹table后样式需要调整
+    .li-form:has(> .li-table) {
+      overflow: hidden;
+      flex: 1;
+
+      .li-table {
+        height: 100%;
+      }
+    }
+  }
+}
+
+// 表格主体部分
+.a-table-main {
+  display: flex;
+  flex-flow: column;
+  gap: 8px;
+  width: 100%;
+}
+
+// 表格查询区
+.a-table-query {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+
+  .li-form-item {
+    // 默认4列布局
+    flex: 0 0 calc((100% - 48px) / 4);
+
+    .li-form-item__content > * {
+      width: 100%;
+    }
+  }
+
+  .li-form {
+    display: flex;
+    flex: 1;
+    flex-flow: row wrap;
+    gap: 16px;
+    // 在这设置以提升优先级
+    .li-form-item {
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+  }
+
+  // 加上这个类名变成3列布局
+  &.is-loose {
+    .li-form-item {
+      flex: 0 0 calc((100% - 32px) / 3);
+    }
+  }
+
+  // 标题在上时右侧按钮需要下移
+  &:has(.li-form--label-top) {
+    .a-table-query-operation {
+      margin-top: 20px;
+    }
+  }
+
+  // 如果需要默认只展示一行查询项，添加该类名
+  &.a-table-query-folded {
+    .li-form {
+      overflow: hidden;
+      flex-flow: row nowrap;
+    }
+  }
+}
+
+// 工具栏
+.a-table-toolbar {
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+
+  & > * {
+    width: unset;
+  }
+}
+
+// 如果该div是block元素，则需要设置如下属性
+div.a-table-query-operation {
+  gap: 16px;
+  width: unset;
+  margin-left: auto;
+}
+
+// 拖拽图标
+.li-icon.a-table-drag-handle {
+  font-size: 18px;
+  color: var(--li-color-on-light-800);
+  vertical-align: middle;
+
+  &:hover {
+    cursor: grab;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* 表格样式 end */
+
+/* 表单样式 begin */
+
+// 子表单，flex布局，方便多列布局
+.a-sub-form {
+  display: flex;
+  flex-flow: row wrap;
+  width: 100%;
+
+  // 设置内部的表单行下边距为16px
+  div.li-form-item {
+    margin-bottom: 16px;
+
+    .li-form-item__content {
+      // 如果内部有按钮，则间距8px，第一个元素占满剩余空间，让按钮靠右
+      &:has(.li-button) {
+        gap: 8px;
+
+        > :first-child {
+          flex: 1;
+        }
+      }
+    }
+  }
+}
+
+.li-form-item {
+  // 设置子表单卡片的下边距为16px
+  .a-card:has(.a-sub-form) {
+    margin-bottom: 8px;
+  }
+}
+
+/*  表单样式 end */
+
+/* 项目样式 begin */
+ul,
+li,
+p {
+  margin: 0;
+  padding: 0;
+}
+
+// 设置最外层容器为flex布局，让页面主要区域可以内部滚动
+.li-pro-layout__container {
+  display: flex;
+  flex-direction: column;
+}
+
+// 二级页面容器需要设置为flex布局，让页面主要区域可以内部滚动
+div:has(> .li-page-header) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* 项目样式 end */

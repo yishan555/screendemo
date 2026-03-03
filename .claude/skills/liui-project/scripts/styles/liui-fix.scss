@@ -1,0 +1,173 @@
+// 由于历史原因，liui直接升级会导致历史项目出问题，可以在项目中引入该文件以修复样式问题
+
+// 设置默认字体为理想等宽字体
+@font-face {
+  font-family: 'Licium Number';
+  font-weight: 300;
+  font-style: normal;
+  src: url('https://s.ampmake.com/fed/cdn/LiciumNumber/0.1/LiciumFontNumber-Regular.woff2');
+}
+
+@font-face {
+  font-family: 'Licium Number';
+  font-weight: 400;
+  font-style: normal;
+  src: url('https://s.ampmake.com/fed/cdn/LiciumNumber/0.1/LiciumFontNumber-Regular.woff2');
+}
+
+@font-face {
+  font-family: 'Licium Number';
+  font-weight: 500;
+  font-style: normal;
+  src: url('https://s.ampmake.com/fed/cdn/LiciumNumber/0.1/LiciumFontNumber-Medium.woff2');
+}
+
+@font-face {
+  font-family: 'Licium Number';
+  font-weight: 600;
+  font-style: normal;
+  src: url('https://s.ampmake.com/fed/cdn/LiciumNumber/0.1/LiciumFontNumber-Medium.woff2');
+}
+
+@font-face {
+  font-family: 'Licium Number';
+  font-weight: 700;
+  font-style: normal;
+  src: url('https://s.ampmake.com/fed/cdn/LiciumNumber/0.1/LiciumFontNumber-Bold.woff2');
+}
+
+:root {
+  --li-font-family: 'Licium Number', sans-serif !important;
+}
+
+// 解决页面顶部栏高度与设计稿高度不一致的问题
+.li-pro-layout {
+  .li-pro-layout__title {
+    height: 56px;
+  }
+
+  .li-pro-layout-header__main {
+    height: 32px;
+  }
+
+  .li-pro-layout-header {
+    height: unset;
+    padding: 12px 16px;
+  }
+}
+
+// 解决内部组件会偏下的问题
+.li-pro-layout-header__extra {
+  display: flex;
+}
+
+body {
+  // 添加默认字体样式，以确保页面有基础的字体大小和行高
+  font: var(--li-font-body);
+}
+
+// 解决按钮之间间距与设计稿不一致的问题
+*.li-button + .li-button {
+  margin-left: 16px;
+}
+
+// 修复上面按钮间距对穿梭框内按钮的影响
+button.li-transfer__button:nth-child(2) {
+  margin-left: 0;
+}
+
+// 标签之间间距为8px
+.li-tag + .li-tag {
+  margin-left: 8px;
+}
+
+// 表格单元格按钮之间间距改为4px
+.li-table__cell {
+  // 普通按钮之间间距为8px
+  .li-button + .li-button {
+    margin-left: 8px;
+  }
+
+  // 文字按钮之间间距为4px
+  .li-button + .li-button.is-text {
+    margin-left: 4px;
+  }
+
+  // 按钮与下拉菜单之间间距为4px
+  .li-button + .li-dropdown {
+    margin-left: 4px;
+  }
+}
+
+.li-form {
+  // 非内联布局右侧边距需要去掉
+  &:not(.li-form--inline) .li-form-item {
+    margin-right: 0;
+  }
+}
+
+// 修改暂无数据的颜色
+span.li-table__empty-text,
+span.li-tree__empty-text {
+  color: var(--li-color-on-light-800);
+}
+
+// 解决暂无数据不垂直居中的问题
+.li-scrollbar__view:has(.li-table__empty-block) {
+  height: 100%;
+}
+
+// 解决按钮图标与文字之间的间距太宽的问题
+button.li-button [class*='li-icon'] + span {
+  margin-left: 4px;
+}
+
+// 解决抽屉底部按钮与内容间距过大的问题
+div.li-drawer__footer {
+  padding-top: 0;
+}
+
+// 将10px修正为8px
+ul.li-upload-list {
+  margin-top: 8px;
+}
+
+// 解决无文件时上传按钮距离下方元素间距过大的问题
+.li-upload-list:empty {
+  margin-top: 0;
+}
+
+// 解决上传组件提示文字行高过大的问题
+.li-upload__tip {
+  line-height: 16px;
+}
+
+// 让文件列表更紧凑
+a.li-upload-list__item-name {
+  height: 32px;
+  padding: 0 4px;
+  line-height: 32px;
+}
+
+// 在没有上传按钮只展示文件列表的时候，隐藏上传组件的空白并移除文件列表的上边距
+.li-upload:has(.li-upload__input:only-child) {
+  display: none;
+
+  & + .li-upload-list {
+    margin-top: 0;
+  }
+}
+
+// 人员标签之间间距设置为8px
+.li-overflow-list {
+  div + div {
+    margin-left: 8px;
+  }
+}
+
+// 解决滑块组件最后一个刻度值文字超出导致父容器出横向滚动条的问题
+.li-slider__marks-text:last-child {
+  right: 0;
+  left: unset !important;
+  transform: unset;
+}

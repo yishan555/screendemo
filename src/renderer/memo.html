@@ -129,24 +129,27 @@
     /* Drawer handle (only visible when collapsed) */
     .drawer-handle {
       position: absolute;
-      top: 50%;
-      right: 0;
-      transform: translateY(-50%);
+      top: 0;
+      left: 0;
       width: 100%;
-      height: 50px;
+      height: 100%;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       z-index: 9999;
-      -webkit-app-region: no-drag; /* Change to no-drag to allow clicks, we'll handle dragging via JS */
+      -webkit-app-region: no-drag;
+      background: rgba(102, 126, 234, 0.85);
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+
+    .drawer-handle:hover {
+      background: rgba(102, 126, 234, 0.95);
     }
 
     .handle-indicator {
-      width: 6px;
-      height: 30px;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 3px;
+      display: none;
     }
 
     /* State-specific visibility */
@@ -334,6 +337,22 @@
       font-size: 12px;
       color: #999;
       margin-bottom: 2px;
+    }
+
+    .countdown {
+      font-size: 11px;
+      font-weight: 600;
+      color: #007bff;
+      background: rgba(0, 123, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+
+    .countdown.overdue {
+      color: #dc3545;
+      background: rgba(220, 53, 69, 0.1);
     }
 
     .clipboard-indicator {
@@ -610,6 +629,27 @@
     <button class="tab" data-filter="done">Done</button>
   </div>
 
+  <!-- Search and Date Filter Bar -->
+  <div style="padding: 10px 20px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px; position: relative;">
+      <input type="text" id="searchInput" placeholder="Search notes..."
+             style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s;">
+    </div>
+    <select id="dateFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; background: #f9f9f9; cursor: pointer;">
+      <option value="all">All Time</option>
+      <option value="today">Today</option>
+      <option value="yesterday">Yesterday</option>
+      <option value="last7days">Last 7 Days</option>
+      <option value="last30days">Last 30 Days</option>
+      <option value="custom">Custom Range...</option>
+    </select>
+    <div id="customDateRange" style="display: none; gap: 5px; align-items: center;">
+      <input type="date" id="dateFrom" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+      <span style="color: #999;">-</span>
+      <input type="date" id="dateTo" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+    </div>
+  </div>
+
   <!-- List container -->
   <div class="list-container" id="listContainer">
     <!-- List items will be rendered here dynamically -->
@@ -648,6 +688,13 @@
       setupEventListeners();
       setupModalListeners();
       setupDrawerListeners();
+
+      // Auto-refresh countdowns every minute
+      setInterval(() => {
+        if (records.length > 0) {
+          renderList(records);
+        }
+      }, 60000);
     });
 
     // Setup drawer event listeners
@@ -742,6 +789,57 @@
       // Mouse leave window - removed immediate collapse
     }
 
+    // Recalculate which records to show based on all active filters
+    function applyFilters() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const dateFilterMode = document.getElementById('dateFilter').value;
+      const dateFromValue = document.getElementById('dateFrom').value;
+      const dateToValue = document.getElementById('dateTo').value;
+
+      const filteredRecords = records.filter(record => {
+        // 1. Search term filter
+        const noteText = (record.note?.text || '').toLowerCase();
+        if (searchTerm && !noteText.includes(searchTerm)) {
+          return false;
+        }
+
+        // 2. Date range filter
+        const createdAt = new Date(record.createdAt);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        if (dateFilterMode === 'today') {
+          if (createdAt < today) return false;
+        } else if (dateFilterMode === 'yesterday') {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          if (createdAt < yesterday || createdAt >= today) return false;
+        } else if (dateFilterMode === 'last7days') {
+          const last7 = new Date(today);
+          last7.setDate(last7.getDate() - 7);
+          if (createdAt < last7) return false;
+        } else if (dateFilterMode === 'last30days') {
+          const last30 = new Date(today);
+          last30.setDate(last30.getDate() - 30);
+          if (createdAt < last30) return false;
+        } else if (dateFilterMode === 'custom') {
+          if (dateFromValue) {
+            const from = new Date(dateFromValue);
+            if (createdAt < from) return false;
+          }
+          if (dateToValue) {
+            const to = new Date(dateToValue);
+            to.setHours(23, 59, 59, 999);
+            if (createdAt > to) return false;
+          }
+        }
+
+        return true;
+      });
+
+      renderList(filteredRecords);
+    }
+
     // Setup all event listeners
     function setupEventListeners() {
       // Window controls
@@ -772,6 +870,23 @@
           loadRecords(currentFilter);
         });
       });
+
+      // Search input
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+      // Date filter
+      document.getElementById('dateFilter').addEventListener('change', (e) => {
+        const customDateRange = document.getElementById('customDateRange');
+        if (e.target.value === 'custom') {
+          customDateRange.style.display = 'flex';
+        } else {
+          customDateRange.style.display = 'none';
+        }
+        applyFilters();
+      });
+
+      document.getElementById('dateFrom').addEventListener('change', applyFilters);
+      document.getElementById('dateTo').addEventListener('change', applyFilters);
 
       // Add note button
       document.getElementById('addBtn').addEventListener('click', handleAddNote);
@@ -834,12 +949,23 @@
         // Remove clipboard type indicators - not needed
         const clipboardIndicator = '';
 
+        // Countdown display
+        let countdownHtml = '';
+        if (record.schedule?.dueAt && record.status !== 'done') {
+          const dueAt = new Date(record.schedule.dueAt);
+          const diffMs = dueAt - new Date();
+          const diffHrs = (diffMs / (1000 * 60 * 60)).toFixed(1);
+          const isOverdue = diffMs < 0;
+          countdownHtml = `<div class="countdown ${isOverdue ? 'overdue' : ''}">${diffHrs}h</div>`;
+        }
+
         return `
           <div class="list-item"
                data-metadata-path="${record.metadataPath}"
                data-status="${record.status}"
                draggable="true">
             <div class="drag-handle">⋮⋮</div>
+            ${countdownHtml}
             <input type="checkbox"
                    class="status-checkbox"
                    ${record.status === 'done' ? 'checked' : ''}>

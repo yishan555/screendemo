@@ -53,7 +53,7 @@ class FloatWindow {
       backgroundColor: '#667eea',  // 使用渐变主色调，避免白屏
       minWidth: config.FLOAT_WINDOW.width,  // 限制最小宽度
       maxWidth: config.FLOAT_WINDOW.width,  // 限制最大宽度（防止用户手动拉宽）
-      minHeight: 250,  // 最小高度
+      minHeight: 525,  // 最小高度确保所有内容可见
       maxHeight: 700,  // 最大高度
       webPreferences: {
         nodeIntegration: true,
@@ -289,18 +289,23 @@ class FloatWindow {
     });
 
     // Save note to metadata
-    ipcMain.handle('save-note', async (event, { metadataPath, noteText, isEditMode = false }) => {
-      logger.info('Saving note to metadata:', metadataPath, isEditMode ? '(edit mode)' : '(new capture)');
+    ipcMain.handle('save-note', async (event, { metadataPath, noteText, schedule, isEditMode = false }) => {
+      logger.info('Saving note/schedule to metadata:', metadataPath, isEditMode ? '(edit mode)' : '(new capture)');
       try {
-        const success = await storage.updateNote(metadataPath, noteText, isEditMode);
+        let success = await storage.updateNote(metadataPath, noteText, isEditMode);
+
+        if (success && schedule) {
+          await storage.updateSchedule(metadataPath, schedule);
+        }
+
         if (success) {
-          logger.info('Note saved successfully');
+          logger.info('Record saved successfully');
         } else {
           logger.error('Failed to save note');
         }
         return success;
       } catch (error) {
-        logger.error('Error saving note:', error.message);
+        logger.error('Error saving record:', error.message);
         return false;
       }
     });
@@ -321,7 +326,7 @@ class FloatWindow {
     ipcMain.on('adjust-float-height', (event, height) => {
       if (this.window && !this.window.isDestroyed()) {
         const currentSize = this.window.getSize();
-        const newHeight = Math.min(Math.max(height, 250), 700); // Min 250px, Max 700px
+        const newHeight = Math.min(Math.max(height, 450), 700); // Min 450px, Max 700px
         this.window.setSize(currentSize[0], newHeight);
         logger.debug(`Float window height adjusted to: ${newHeight}px`);
       }

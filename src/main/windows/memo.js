@@ -20,6 +20,7 @@ class MemoWindow {
     this.isSticky = false;       // Whether expanded via click (doesn't auto-collapse on mouseout)
     this.animationTimer = null;
     this.isAnimating = false;    // Block events during animation
+    this.reminderWindow = null;  // Pre-loaded reminder window
   }
 
   /**
@@ -33,6 +34,54 @@ class MemoWindow {
     } else {
       this.createNormalWindow();
     }
+  }
+
+  /**
+   * Pre-initialize memo window for faster loading
+   */
+  initialize() {
+    logger.info('Pre-initializing memo window for faster loading...');
+    this.create();
+    // Pre-load reminder window as well
+    this.preloadReminderWindow();
+  }
+
+  /**
+   * Pre-load reminder window in the background
+   */
+  preloadReminderWindow() {
+    if (this.reminderWindow && !this.reminderWindow.isDestroyed()) {
+      return;
+    }
+
+    logger.info('Pre-loading reminder window...');
+
+    this.reminderWindow = new BrowserWindow({
+      width: 400,
+      height: 250,
+      frame: false,
+      alwaysOnTop: true,
+      skipTaskbar: false,
+      transparent: false,
+      backgroundColor: '#667eea',
+      resizable: false,
+      show: false,  // Don't show initially
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    const reminderHtmlPath = path.join(__dirname, '../../renderer/reminder.html');
+    this.reminderWindow.loadFile(reminderHtmlPath);
+
+    this.reminderWindow.on('closed', () => {
+      this.reminderWindow = null;
+      // Pre-load a new one for next reminder
+      setTimeout(() => this.preloadReminderWindow(), 1000);
+    });
+
+    logger.info('Reminder window pre-loaded');
   }
 
   /**
@@ -59,6 +108,7 @@ class MemoWindow {
       alwaysOnTop: true,
       skipTaskbar: this.drawerState === 'collapsed',  // Hide from taskbar when collapsed
       backgroundColor: '#f5f5f5',
+      show: false,  // Don't show immediately for pre-loading
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -80,6 +130,10 @@ class MemoWindow {
     // Send initial state to renderer
     this.window.webContents.on('did-finish-load', () => {
       this.syncStateToRenderer();
+      // Show window after content is loaded (for pre-initialized window)
+      if (this.drawerState !== 'collapsed') {
+        this.window.show();
+      }
     });
 
     // Window closed event
@@ -107,6 +161,7 @@ class MemoWindow {
       alwaysOnTop: true,
       skipTaskbar: false,
       backgroundColor: '#f5f5f5',
+      show: false,  // Don't show immediately for pre-loading
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -124,6 +179,11 @@ class MemoWindow {
     // Window closed event
     this.window.on('closed', () => {
       this.window = null;
+    });
+
+    // Show window after content is loaded
+    this.window.webContents.on('did-finish-load', () => {
+      this.window.show();
     });
 
     logger.info('Memo window created');
@@ -273,7 +333,7 @@ class MemoWindow {
     this.window.setAlwaysOnTop(true, 'normal');
     this.window.setSkipTaskbar(false);
 
-    this.animateTo(startBounds, targetBounds, 200, () => {
+    this.animateTo(startBounds, targetBounds, 150, () => {
       this.window.setResizable(true); // Re-enable resizing
       this.syncStateToRenderer();
     });
@@ -301,7 +361,7 @@ class MemoWindow {
 
     this.window.setResizable(false);
 
-    this.animateTo(startBounds, targetBounds, 200, () => {
+    this.animateTo(startBounds, targetBounds, 150, () => {
       this.window.setAlwaysOnTop(true, 'screen-saver');
       this.window.setSkipTaskbar(true);
       this.syncStateToRenderer();
@@ -322,11 +382,11 @@ class MemoWindow {
   }
 
   /**
-   * Helper for window animation
+   * Helper for window animation - optimized with high-frequency setTimeout
    */
   animateTo(start, target, duration, callback) {
     if (this.animationTimer) {
-      clearInterval(this.animationTimer);
+      clearTimeout(this.animationTimer);
     }
 
     this.isAnimating = true; // Block events during animation
@@ -341,12 +401,12 @@ class MemoWindow {
     const startY = start.y;
     const startHeight = start.height;
 
-    this.animationTimer = setInterval(() => {
+    const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Ease out quad
-      const easeProgress = progress * (2 - progress);
+      // Ease out cubic for smoother animation
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
 
       const currentX = Math.round(startX + (endX - startX) * easeProgress);
       const currentWidth = Math.round(startWidth + (endWidth - startWidth) * easeProgress);
@@ -363,12 +423,16 @@ class MemoWindow {
       }
 
       if (progress >= 1) {
-        clearInterval(this.animationTimer);
         this.animationTimer = null;
         this.isAnimating = false; // Allow events again
         if (callback) callback();
+      } else {
+        // Use 8ms interval for ~120fps smooth animation
+        this.animationTimer = setTimeout(animate, 8);
       }
-    }, 16); // ~60fps
+    };
+
+    animate();
   }
 
   /**
@@ -618,9 +682,96 @@ class MemoWindow {
   }
 
   /**
+   * Check all records for due reminders
+   */
+  async checkReminders() {
+    try {
+      const records = await storage.listAllRecords('todo');
+      const now = new Date();
+      const nowISO = now.toISOString();
+
+      for (const record of records) {
+        if (record.schedule?.dueAt) {
+          const dueAt = new Date(record.schedule.dueAt);
+
+          // Conditions:
+          // 1. Current time >= dueAt
+          // 2. Not already triggered for this due date
+          // 3. (Optional) Ignore very old reminders - only remind if due within last 24h
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+          if (now >= dueAt && dueAt > oneDayAgo && record.reminder?.lastTriggeredAt !== record.schedule.dueAt) {
+            this.showReminder(record);
+
+            // Mark as triggered for this specific due date
+            await storage.updateReminderStatus(record.metadataPath, record.schedule.dueAt);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error checking reminders:', error.message);
+    }
+  }
+
+  /**
+   * Show a reminder popup for a specific record
+   */
+  showReminder(record) {
+    logger.info('Showing reminder for:', record.metadataPath);
+
+    const noteText = record.note?.text || 'No content';
+    const summary = noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText;
+    const dueTime = new Date(record.schedule.dueAt).toLocaleString();
+
+    // Use pre-loaded window if available, otherwise create new one
+    if (!this.reminderWindow || this.reminderWindow.isDestroyed()) {
+      this.preloadReminderWindow();
+    }
+
+    const reminderWindow = this.reminderWindow;
+
+    // Send data to renderer after window is ready
+    if (reminderWindow.webContents.isLoading()) {
+      reminderWindow.webContents.once('did-finish-load', () => {
+        reminderWindow.webContents.send('reminder-data', {
+          summary,
+          dueTime,
+          metadataPath: record.metadataPath
+        });
+      });
+    } else {
+      reminderWindow.webContents.send('reminder-data', {
+        summary,
+        dueTime,
+        metadataPath: record.metadataPath
+      });
+    }
+
+    // Position at center
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+    reminderWindow.setPosition(
+      Math.floor((width - 400) / 2),
+      Math.floor((height - 250) / 2)
+    );
+
+    reminderWindow.setAlwaysOnTop(true, 'screen-saver');
+    reminderWindow.show();
+    reminderWindow.focus();
+  }
+
+  /**
    * Setup IPC listeners
    */
   setupIPC() {
+    // Check for due reminders every minute
+    setInterval(() => {
+      this.checkReminders();
+    }, 60000);
+
+    // Initial check on setup
+    setTimeout(() => this.checkReminders(), 5000);
+
     // Get drawer configuration
     ipcMain.handle('memo:get-drawer-config', () => {
       const drawerConfig = configManager.get('drawer');
@@ -755,6 +906,42 @@ class MemoWindow {
           width: bounds.width,
           height: bounds.height
         });
+      }
+    });
+
+    // Listen for manual list refresh
+    ipcMain.on('memo:manual-refresh', () => {
+      if (this.window && !this.window.isDestroyed()) {
+        this.window.webContents.send('memo:refresh-list');
+      }
+    });
+
+    // Handle reminder actions
+    ipcMain.on('reminder-action', async (event, { action, path }) => {
+      logger.info(`Reminder action: ${action} for ${path}`);
+      try {
+        const metadata = await storage.loadMetadata(path);
+        if (action === 'open') {
+          this.show();
+          const floatWindow = require('./float');
+          floatWindow.showForEdit(metadata);
+        } else if (action === 'done') {
+          await storage.updateStatus(path, 'done');
+          if (this.window && !this.window.isDestroyed()) {
+            this.window.webContents.send('memo:refresh-list');
+          }
+        } else if (action === 'snooze') {
+          const newDue = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+          await storage.updateSchedule(path, {
+            startAt: metadata.schedule.startAt,
+            dueAt: newDue
+          });
+          if (this.window && !this.window.isDestroyed()) {
+            this.window.webContents.send('memo:refresh-list');
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to handle reminder action:', error.message);
       }
     });
 

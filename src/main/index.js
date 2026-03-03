@@ -80,6 +80,12 @@ if (!gotTheLock) {
         floatWindow.initialize();
       }, 2000);
 
+      // 10. Pre-create memo window for performance (after 3 seconds)
+      setTimeout(() => {
+        logger.info('Pre-creating memo window...');
+        memoWindow.initialize();
+      }, 3000);
+
     } catch (error) {
       logger.error('Application initialization failed:', error.message);
       logger.error(error.stack);

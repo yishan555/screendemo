@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Reminder</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .time {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 15px;
+    }
+
+    .content {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      flex: 1;
+      margin-bottom: 20px;
+      overflow-y: auto;
+      word-break: break-all;
+      line-height: 1.5;
+      backdrop-filter: blur(10px);
+    }
+
+    .footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    button {
+      padding: 8px 15px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-primary {
+      background: rgba(255, 255, 255, 0.9);
+      color: #667eea;
+      border: none;
+      font-weight: bold;
+    }
+
+    .btn-primary:hover {
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">⏰ Task Reminder</div>
+  <div class="time" id="dueTime">Due: Loading...</div>
+  <div class="content" id="content">Loading...</div>
+  <div class="footer">
+    <button id="snoozeBtn">Snooze 10m</button>
+    <button id="doneBtn">Mark Done</button>
+    <button class="btn-primary" id="openBtn">Open Record</button>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let currentRecord = null;
+
+    // Receive reminder data from main process
+    ipcRenderer.on('reminder-data', (event, data) => {
+      currentRecord = data;
+      document.getElementById('dueTime').textContent = `Due: ${data.dueTime}`;
+      document.getElementById('content').textContent = data.summary;
+    });
+
+    // Button handlers
+    document.getElementById('snoozeBtn').addEventListener('click', () => {
+      if (currentRecord) {
+        ipcRenderer.send('reminder-action', { action: 'snooze', path: currentRecord.metadataPath });
+        window.close();
+      }
+    });
+
+    document.getElementById('doneBtn').addEventListener('click', () => {
+      if (currentRecord) {
+        ipcRenderer.send('reminder-action', { action: 'done', path: currentRecord.metadataPath });
+        window.close();
+      }
+    });
+
+    document.getElementById('openBtn').addEventListener('click', () => {
+      if (currentRecord) {
+        ipcRenderer.send('reminder-action', { action: 'open', path: currentRecord.metadataPath });
+        window.close();
+      }
+    });
+  </script>
+</body>
+</html>

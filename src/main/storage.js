@@ -143,7 +143,13 @@ class Storage {
         note: {
           text: initialNoteText,
           updatedAt: new Date().toISOString()
-        }
+        },
+        schedule: {
+          startAt: null,
+          dueAt: null
+        },
+        status: 'todo',
+        order: recordId
       };
 
       const metadataPath = path.join(this.capturesDir, `${baseFileName}${config.METADATA_SUFFIX}`);
@@ -200,6 +206,70 @@ class Storage {
   }
 
   /**
+   * Update schedule content in metadata
+   * @param {string} metadataPath - Path to metadata file
+   * @param {Object} schedule - Object with startAt and dueAt
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateSchedule(metadataPath, schedule) {
+    try {
+      // Validate dates if provided
+      if (schedule.startAt && schedule.dueAt) {
+        if (new Date(schedule.dueAt) < new Date(schedule.startAt)) {
+          throw new Error('Due date cannot be earlier than start date');
+        }
+      }
+
+      // Read existing metadata
+      const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+      const metadata = JSON.parse(metadataContent);
+
+      // Update schedule field
+      metadata.schedule = {
+        startAt: schedule.startAt || null,
+        dueAt: schedule.dueAt || null
+      };
+
+      // Write back to file
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      logger.info('Schedule updated:', metadataPath);
+
+      return true;
+    } catch (error) {
+      logger.error('Failed to update schedule:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Update reminder status in metadata
+   * @param {string} metadataPath - Path to metadata file
+   * @param {string} triggeredAt - ISO string of when it was triggered (usually dueAt)
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateReminderStatus(metadataPath, triggeredAt) {
+    try {
+      // Read existing metadata
+      const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+      const metadata = JSON.parse(metadataContent);
+
+      // Update reminder field
+      metadata.reminder = {
+        lastTriggeredAt: triggeredAt
+      };
+
+      // Write back to file
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      logger.debug(`Reminder status updated in:`, metadataPath);
+
+      return true;
+    } catch (error) {
+      logger.error('Failed to update reminder status:', error.message);
+      return false;
+    }
+  }
+
+  /**
    * Load metadata from file
    * @param {string} metadataPath - Path to metadata file
    * @returns {Promise<Object>} Metadata object
@@ -229,6 +299,11 @@ class Storage {
    * @returns {Object} Migrated metadata object
    */
   migrateMetadata(metadata) {
+    // Add createdAt if missing (extract from id or use current date)
+    if (!metadata.createdAt) {
+      metadata.createdAt = metadata.id ? new Date(metadata.id).toISOString() : new Date().toISOString();
+    }
+
     // Add status field if missing (default: 'todo')
     if (!metadata.status) {
       metadata.status = 'todo';
@@ -253,6 +328,21 @@ class Storage {
         types: metadata.clipboardText ? ['text'] : [],
         text: metadata.clipboardText || null,
         imagePath: null
+      };
+    }
+
+    // Ensure schedule structure exists
+    if (!metadata.schedule) {
+      metadata.schedule = {
+        startAt: null,
+        dueAt: null
+      };
+    }
+
+    // Ensure reminder structure exists
+    if (!metadata.reminder) {
+      metadata.reminder = {
+        lastTriggeredAt: null
       };
     }
 
@@ -468,6 +558,10 @@ class Storage {
           text: noteText,
           updatedAt: createdAt
         },
+        schedule: {
+          startAt: null,
+          dueAt: null
+        },
         status: 'todo',
         order: recordId  // Use timestamp as order
       };
@@ -531,6 +625,10 @@ class Storage {
         note: {
           text: noteText,
           updatedAt: createdAt
+        },
+        schedule: {
+          startAt: null,
+          dueAt: null
         },
         status: 'todo',
         order: recordId  // Use timestamp as order

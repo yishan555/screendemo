@@ -161,6 +161,58 @@
       box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
     }
 
+    .date-input-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 4px;
+      padding-right: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .date-input-container:focus-within {
+      border-color: rgba(102, 126, 234, 0.8);
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+
+    .compact-datetime {
+      border: none !important;
+      background: transparent !important;
+      padding: 4px 0 4px 8px !important;
+      margin: 0 !important;
+      min-height: 28px !important;
+      flex: 1;
+      width: 100%;
+      outline: none !important;
+      box-shadow: none !important;
+      cursor: pointer;
+    }
+
+    /* Style the calendar picker icon to be more compact */
+    .compact-datetime::-webkit-calendar-picker-indicator {
+      margin-left: -15px;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .small-btn {
+      margin-top: 0 !important;
+      padding: 4px 6px !important;
+      font-size: 10px !important;
+      min-width: 36px;
+      white-space: nowrap;
+    }
+
     .note-hint {
       font-size: 10px;
       opacity: 0.8;
@@ -310,6 +362,34 @@
     </div>
 
     <div class="info-section">
+      <div class="info-label">Schedule:</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 11px; width: 35px;">Start:</label>
+          <div class="date-input-container" onclick="document.getElementById('startAt').showPicker()">
+            <input type="datetime-local" id="startAt" class="compact-datetime">
+          </div>
+          <div class="btn-row">
+            <button id="setStartNowBtn" class="image-action-btn small-btn">Now</button>
+            <button id="clearStartBtn" class="image-action-btn small-btn">Clear</button>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 11px; width: 35px;">Due:</label>
+          <div class="date-input-container" onclick="document.getElementById('dueAt').showPicker()">
+            <input type="datetime-local" id="dueAt" class="compact-datetime">
+          </div>
+          <div class="btn-row">
+            <button id="setDue2hBtn" class="image-action-btn small-btn">+2h</button>
+            <button id="setDueTodayBtn" class="image-action-btn small-btn">Today</button>
+            <button id="setDueWeekBtn" class="image-action-btn small-btn">This week</button>
+            <button id="clearDueBtn" class="image-action-btn small-btn">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-section">
       <div class="info-label">Original Clipboard Snapshot:</div>
       <div id="clipboardContent">
         <!-- Text clipboard -->
@@ -345,6 +425,19 @@
     let currentData = null;
     let hasUnsavedChanges = false;
     let isEditMode = false; // Track if we're editing existing record
+
+    // Format ISO date string to datetime-local input format (YYYY-MM-DDTHH:mm)
+    function formatDateTimeForInput(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      // Get local time components
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
 
     // Adjust height on initial load
     window.addEventListener('DOMContentLoaded', () => {
@@ -452,9 +545,76 @@
       }
     }
 
-    // Track changes to note textarea
+    // Track changes to note textarea and schedule inputs
     document.getElementById('noteTextarea').addEventListener('input', () => {
       hasUnsavedChanges = true;
+    });
+    document.getElementById('startAt').addEventListener('change', () => {
+      hasUnsavedChanges = true;
+    });
+    document.getElementById('dueAt').addEventListener('change', () => {
+      hasUnsavedChanges = true;
+    });
+
+    // Start At Buttons
+    document.getElementById('setStartNowBtn').addEventListener('click', async () => {
+      const now = new Date();
+      document.getElementById('startAt').value = formatDateTimeForInput(now.toISOString());
+      hasUnsavedChanges = true;
+      await saveNote(); // Trigger save immediately for Now button
+      ipcRenderer.send('memo:manual-refresh');
+    });
+
+    document.getElementById('clearStartBtn').addEventListener('click', async () => {
+      document.getElementById('startAt').value = '';
+      hasUnsavedChanges = true;
+      await saveNote();
+      ipcRenderer.send('memo:manual-refresh');
+    });
+
+    // Due At Buttons
+    document.getElementById('setDue2hBtn').addEventListener('click', async () => {
+      const date = new Date();
+      date.setHours(date.getHours() + 2);
+      document.getElementById('dueAt').value = formatDateTimeForInput(date.toISOString());
+      hasUnsavedChanges = true;
+      await saveNote();
+      ipcRenderer.send('memo:manual-refresh');
+    });
+
+    document.getElementById('setDueTodayBtn').addEventListener('click', async () => {
+      const date = new Date();
+      date.setHours(18, 0, 0, 0);
+      if (new Date() >= date) {
+        date.setDate(date.getDate() + 1);
+      }
+      document.getElementById('dueAt').value = formatDateTimeForInput(date.toISOString());
+      hasUnsavedChanges = true;
+      await saveNote();
+      ipcRenderer.send('memo:manual-refresh');
+    });
+
+    document.getElementById('setDueWeekBtn').addEventListener('click', async () => {
+      const date = new Date();
+      // Target: Friday 18:00
+      // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
+      let daysUntilFriday = 5 - date.getDay();
+      if (daysUntilFriday < 0 || (daysUntilFriday === 0 && date.getHours() >= 18)) {
+        daysUntilFriday += 7;
+      }
+      date.setDate(date.getDate() + daysUntilFriday);
+      date.setHours(18, 0, 0, 0);
+      document.getElementById('dueAt').value = formatDateTimeForInput(date.toISOString());
+      hasUnsavedChanges = true;
+      await saveNote();
+      ipcRenderer.send('memo:manual-refresh');
+    });
+
+    document.getElementById('clearDueBtn').addEventListener('click', async () => {
+      document.getElementById('dueAt').value = '';
+      hasUnsavedChanges = true;
+      await saveNote();
+      ipcRenderer.send('memo:manual-refresh');
     });
 
     // Auto-save note function
@@ -464,18 +624,33 @@
       }
 
       const noteText = document.getElementById('noteTextarea').value;
-      console.log('Auto-saving note...', isEditMode ? '(edit mode)' : '(new capture)');
+      const startAtStr = document.getElementById('startAt').value;
+      const dueAtStr = document.getElementById('dueAt').value;
+
+      const schedule = {
+        startAt: startAtStr ? new Date(startAtStr).toISOString() : null,
+        dueAt: dueAtStr ? new Date(dueAtStr).toISOString() : null
+      };
+
+      // Validate dueAt >= startAt if both provided
+      if (schedule.startAt && schedule.dueAt && new Date(schedule.dueAt) < new Date(schedule.startAt)) {
+        alert('Due date cannot be earlier than start date');
+        return;
+      }
+
+      console.log('Auto-saving note/schedule...', isEditMode ? '(edit mode)' : '(new capture)');
 
       try {
         await ipcRenderer.invoke('save-note', {
           metadataPath: currentData.metadataPath,
           noteText: noteText,
+          schedule: schedule,
           isEditMode: isEditMode  // Pass edit mode flag
         });
         hasUnsavedChanges = false;
-        console.log('Note saved successfully');
+        console.log('Record saved successfully');
       } catch (error) {
-        console.error('Failed to save note:', error);
+        console.error('Failed to save record:', error);
       }
     }
 
@@ -547,8 +722,8 @@
 
           if (isTextOnly) {
             // Fixed height for text-only clipboard
-            adjustedHeight = 420;
-            console.log('✅ Text-only clipboard detected: using fixed height 420px', {
+            adjustedHeight = 450;
+            console.log('✅ Text-only clipboard detected: using fixed height 450px', {
               types: currentData.clipboard.types
             });
           } else {
@@ -557,8 +732,8 @@
             const bodyHeight = document.body.scrollHeight;
             const contentHeight = Math.max(documentHeight, bodyHeight);
 
-            // Limit to reasonable range (min 250px, max 700px)
-            adjustedHeight = Math.min(Math.max(contentHeight, 250), 700);
+            // Limit to reasonable range (min 450px to ensure all buttons visible, max 700px)
+            adjustedHeight = Math.min(Math.max(contentHeight, 450), 700);
 
             console.log('📏 Auto-height calculation:', {
               isTextOnly,

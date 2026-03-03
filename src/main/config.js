@@ -12,7 +12,7 @@ module.exports = {
   // 浮窗配置
   FLOAT_WINDOW: {
     width: 480,
-    height: 620,
+    height: 450,  // 默认高度，确保所有内容可见
     resizable: true,  // 允许代码动态调整高度
     frame: false,
     alwaysOnTop: true,

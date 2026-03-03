@@ -1,0 +1,156 @@
+/* stylelint-disable no-descending-specificity */
+
+// 调整LiUI的样式，让其适配最佳实践
+
+// 解决父容器为flex布局时块级元素不会撑开的问题
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+section,
+header,
+footer,
+article,
+aside,
+nav,
+main,
+hr,
+.li-card,
+.li-form,
+.li-form-item,
+.li-tabs,
+.li-row,
+.li-scrollbar,
+.li-carousel,
+.li-collapse,
+.li-empty,
+.li-tree,
+.li-breadcrumb,
+.li-menu,
+.li-steps,
+.li-pro-exception,
+.li-pro-empty,
+.li-pro-target-box,
+.li-pro-hyperlink,
+.li-pro-audio,
+.li-pro-tool-bar,
+.li-pro-tree,
+.li-upload-wrap {
+  width: 100%;
+}
+
+hr {
+  // 解决hr设置100%宽度后会导致容器出现横向滚动条的问题
+  box-sizing: border-box;
+}
+
+.li-form {
+  // 使用flex，方便多列布局
+  display: flex;
+  flex-flow: row wrap;
+  place-content: start flex-start;
+  align-items: flex-start;
+
+  // 表单内的div元素设置下边距为8px，例如标题元素
+  & > :not(.li-form-item) {
+    margin-bottom: 8px;
+  }
+}
+
+.li-form-item__content {
+  // 表单内边框类组件100%宽度
+  & > .li-select,
+  .li-date-editor.li-input,
+  .li-cascader {
+    width: 100%;
+  }
+}
+
+// 表单作为详情展示
+.is-detail {
+  .li-form-item {
+    margin-bottom: 8px;
+  }
+}
+
+.li-dialog {
+  // 避免对话框太高导致底部按钮看不到
+  display: flex;
+  flex-flow: column;
+  max-height: 70vh;
+
+  // 对话框中最后一个表单项下边距设置为0
+  .li-form-item:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.li-dialog__body {
+  overflow: auto;
+  flex: 1;
+}
+
+.li-drawer {
+  // 抽屉中最后一个表单项下边距设置为0
+  .li-form-item:last-child {
+    margin-bottom: 0;
+  }
+  // 如果抽屉内的表格需要撑开，需要修改抽屉的布局
+  &:has(.is-full) {
+    .li-drawer__body {
+      display: flex;
+      flex-flow: column;
+    }
+  }
+}
+
+// 设置抽屉关闭按钮与左侧边距为16px
+.li-drawer__close-btn {
+  margin-left: 16px;
+}
+
+.li-table__row {
+  // 表格行内联编辑，不要受form组件label-with属性的影响。始终为0
+  .li-form-item__content {
+    margin-left: 0 !important;
+  }
+
+  // 表单项下边距为0，出现错误的时候才出现下边距
+  .li-form-item {
+    margin-bottom: 0;
+  }
+
+  &:has(.li-form-item__error) {
+    .li-form-item {
+      margin-bottom: 16px;
+    }
+  }
+}
+
+// 小尺寸下的表单label设置为12px
+.li-form--small .li-form-item__label {
+  font-size: 12px;
+}
+
+// 一般固定在右侧的列都是操作列，让操作列列头文字与单元格按钮文字左对齐
+th.li-table-fixed-column--right .cell {
+  padding: 0 20px;
+}
+
+// 操作列中的子元素之间间距为8px
+td.li-table-fixed-column--right .cell {
+  & > * + * {
+    margin-left: 8px;
+  }
+}
+
+// 让li-link组件也可以文本超出出省略号
+.li-tooltip {
+  .li-link,
+  .li-link__inner {
+    display: unset;
+  }
+}
