@@ -138,7 +138,8 @@ class Storage {
         clipboard: {
           types: clipboardData.types,
           text: clipboardData.text || null,
-          imagePath: clipboardImagePath || null
+          imagePath: clipboardImagePath || null,
+          pastedImages: []
         },
         note: {
           text: initialNoteText,
@@ -162,6 +163,121 @@ class Storage {
       };
     } catch (error) {
       logger.error('Failed to save record:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Save a record with clipboard data but without a screen screenshot
+   * Used when captureScreen is disabled in settings
+   */
+  async saveRecordWithClipboard(clipboardData) {
+    try {
+      const recordId = Date.now();
+      const dateStr = new Date(recordId).toISOString().replace(/[:.]/g, '-');
+      const fileName = `${config.SCREENSHOT_PREFIX}${dateStr}_${recordId}`;
+
+      let clipboardImagePath = null;
+      if (clipboardData.image) {
+        const clipboardFileName = `clipboard_${recordId}.png`;
+        clipboardImagePath = path.join(this.capturesDir, clipboardFileName);
+        await fs.promises.writeFile(clipboardImagePath, clipboardData.image);
+        logger.info('Clipboard image saved:', clipboardImagePath);
+      }
+
+      const metadata = {
+        id: recordId,
+        createdAt: new Date().toISOString(),
+        imagePath: null,
+        clipboard: {
+          types: clipboardData.types,
+          text: clipboardData.text || null,
+          imagePath: clipboardImagePath || null,
+          pastedImages: []
+        },
+        note: {
+          text: clipboardData.text || '',
+          updatedAt: new Date().toISOString()
+        },
+        schedule: {
+          startAt: null,
+          dueAt: null
+        },
+        status: 'todo',
+        order: recordId
+      };
+
+      const metadataPath = path.join(this.capturesDir, `${fileName}${config.METADATA_SUFFIX}`);
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      logger.info('Record (no screenshot) saved:', metadataPath);
+
+      return { metadataPath, clipboardImagePath };
+    } catch (error) {
+      logger.error('Failed to save record without screenshot:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Save a pasted image and register it in the record's pastedImages list
+   * @param {string} metadataPath - Path to metadata file
+   * @param {Buffer} imageBuffer - PNG image buffer
+   * @returns {Promise<Object>} Object with imagePath and updated pastedImages array
+   */
+  async savePastedImage(metadataPath, imageBuffer) {
+    try {
+      const timestamp = Date.now();
+      const imageFileName = `pasted_${timestamp}.png`;
+      const imagePath = path.join(this.capturesDir, imageFileName);
+
+      await fs.promises.writeFile(imagePath, imageBuffer);
+      logger.info('Pasted image saved:', imagePath);
+
+      const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+      const metadata = JSON.parse(metadataContent);
+
+      if (!metadata.clipboard) {
+        metadata.clipboard = { types: [], text: null, imagePath: null, pastedImages: [] };
+      }
+      if (!Array.isArray(metadata.clipboard.pastedImages)) {
+        metadata.clipboard.pastedImages = [];
+      }
+
+      metadata.clipboard.pastedImages.push(imagePath);
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+
+      return { imagePath, pastedImages: metadata.clipboard.pastedImages };
+    } catch (error) {
+      logger.error('Failed to save pasted image:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a pasted image from a record and delete its file
+   * @param {string} metadataPath - Path to metadata file
+   * @param {string} imagePath - Path of the image to remove
+   * @returns {Promise<Object>} Object with updated pastedImages array
+   */
+  async removePastedImage(metadataPath, imagePath) {
+    try {
+      const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+      const metadata = JSON.parse(metadataContent);
+
+      if (metadata.clipboard && Array.isArray(metadata.clipboard.pastedImages)) {
+        metadata.clipboard.pastedImages = metadata.clipboard.pastedImages.filter(p => p !== imagePath);
+      }
+
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+
+      if (fs.existsSync(imagePath)) {
+        await fs.promises.unlink(imagePath);
+        logger.info('Deleted pasted image:', imagePath);
+      }
+
+      return { pastedImages: metadata.clipboard?.pastedImages || [] };
+    } catch (error) {
+      logger.error('Failed to remove pasted image:', error.message);
       throw error;
     }
   }
@@ -525,6 +641,15 @@ class Storage {
           await fs.promises.unlink(metadata.clipboard.imagePath);
           logger.info('Deleted clipboard image:', metadata.clipboard.imagePath);
         }
+
+        // Delete pasted images if any
+        const pastedImages = metadata.clipboard?.pastedImages || [];
+        for (const imgPath of pastedImages) {
+          if (imgPath && fs.existsSync(imgPath)) {
+            await fs.promises.unlink(imgPath);
+            logger.info('Deleted pasted image:', imgPath);
+          }
+        }
       }
 
       return { success: true };
@@ -650,6 +775,32 @@ class Storage {
     } catch (error) {
       logger.error('Failed to create record with clipboard image:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Mark record as pushed to Feishu
+   * @param {string} metadataPath - Path to metadata file
+   * @returns {Promise<boolean>} Success status
+   */
+  async markFeishuPushed(metadataPath) {
+    try {
+      // Read existing metadata
+      const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
+      const metadata = JSON.parse(metadataContent);
+
+      // Mark as pushed
+      metadata.feishuPushed = true;
+      metadata.feishuPushedAt = new Date().toISOString();
+
+      // Write back to file
+      await fs.promises.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+      logger.info('Marked as Feishu pushed:', metadataPath);
+
+      return true;
+    } catch (error) {
+      logger.error('Failed to mark Feishu pushed:', error.message);
+      return false;
     }
   }
 }

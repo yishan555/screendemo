@@ -53,7 +53,7 @@ class FloatWindow {
       backgroundColor: '#667eea',  // 使用渐变主色调，避免白屏
       minWidth: config.FLOAT_WINDOW.width,  // 限制最小宽度
       maxWidth: config.FLOAT_WINDOW.width,  // 限制最大宽度（防止用户手动拉宽）
-      minHeight: 525,  // 最小高度确保所有内容可见
+      minHeight: 350,  // 最小高度确保所有内容可见
       maxHeight: 700,  // 最大高度
       webPreferences: {
         nodeIntegration: true,
@@ -129,6 +129,9 @@ class FloatWindow {
     } else {
       this.sendCaptureData();
     }
+
+    // Reset window to initial height on each new open (don't reuse previous size)
+    this.window.setSize(config.FLOAT_WINDOW.width, config.FLOAT_WINDOW.height);
 
     this.window.show();
     this.window.focus();
@@ -326,7 +329,7 @@ class FloatWindow {
     ipcMain.on('adjust-float-height', (event, height) => {
       if (this.window && !this.window.isDestroyed()) {
         const currentSize = this.window.getSize();
-        const newHeight = Math.min(Math.max(height, 450), 700); // Min 450px, Max 700px
+        const newHeight = Math.min(Math.max(height, 350), 700); // Min 350px, Max 700px
         this.window.setSize(currentSize[0], newHeight);
         logger.debug(`Float window height adjusted to: ${newHeight}px`);
       }
@@ -340,6 +343,45 @@ class FloatWindow {
         } else {
           this.window.webContents.openDevTools({ mode: 'detach' });
         }
+      }
+    });
+
+    // Save a pasted image to disk and register it in the record metadata
+    ipcMain.handle('float:save-pasted-image', async (event, { metadataPath, imageBuffer }) => {
+      try {
+        const buffer = Buffer.from(imageBuffer);
+        const result = await storage.savePastedImage(metadataPath, buffer);
+        logger.info('Pasted image saved via IPC');
+        return result;
+      } catch (error) {
+        logger.error('Failed to save pasted image:', error.message);
+        throw error;
+      }
+    });
+
+    // Remove a pasted image from disk and from the record metadata
+    ipcMain.handle('float:remove-pasted-image', async (event, { metadataPath, imagePath }) => {
+      try {
+        const result = await storage.removePastedImage(metadataPath, imagePath);
+        logger.info('Pasted image removed via IPC');
+        return result;
+      } catch (error) {
+        logger.error('Failed to remove pasted image:', error.message);
+        throw error;
+      }
+    });
+
+    // Discard a new capture record (delete it without saving)
+    ipcMain.handle('float:discard-record', async (_event, { metadataPath }) => {
+      try {
+        if (metadataPath) {
+          await storage.deleteRecord(metadataPath);
+          logger.info('Record discarded (deleted):', metadataPath);
+        }
+        return true;
+      } catch (error) {
+        logger.error('Failed to discard record:', error.message);
+        return false;
       }
     });
 

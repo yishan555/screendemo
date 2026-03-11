@@ -7,6 +7,7 @@ const screenshot = require('screenshot-desktop');
 const { clipboard, screen } = require('electron');
 const logger = require('./logger');
 const storage = require('./storage');
+const configManager = require('./configManager');
 
 class Capture {
   /**
@@ -15,29 +16,37 @@ class Capture {
    */
   async execute() {
     try {
-      logger.info('Starting screenshot...');
+      logger.info('Starting capture...');
 
-      // 1. Capture primary screen screenshot
+      const captureClipboardEnabled = configManager.get('captureClipboard') === true;
+
+      // Capture clipboard content only if enabled
+      const clipboardData = captureClipboardEnabled
+        ? await this.captureClipboard()
+        : { types: [], text: null, image: null };
+
+      // Check if screen capture is enabled
+      if (!configManager.get('captureScreen')) {
+        logger.info('Screen capture disabled, saving clipboard-only record');
+        const result = await storage.saveRecordWithClipboard(clipboardData);
+        return {
+          imagePath: null,
+          captureClipboardEnabled,
+          clipboardText: clipboardData.text || '',
+          clipboard: { types: clipboardData.types, text: clipboardData.text, imagePath: result.clipboardImagePath },
+          metadataPath: result.metadataPath,
+          clipboardImagePath: result.clipboardImagePath
+        };
+      }
+
+      logger.info('Capturing screen...');
       const imageBuffer = await this.captureScreen();
       if (!imageBuffer) {
         throw new Error('Screenshot failed: No image data received');
       }
 
-      // 2. Capture clipboard content (text and/or image)
-      const clipboardData = await this.captureClipboard();
-
-      // 3. Save screenshot
       const imagePath = await storage.saveImage(imageBuffer);
-
-      // 4. Save clipboard data and metadata
       const result = await storage.saveRecord(imagePath, clipboardData);
-
-      // Update clipboard data with saved image path
-      const clipboardForUI = {
-        types: clipboardData.types,
-        text: clipboardData.text,
-        imagePath: result.clipboardImagePath  // Use the saved file path instead of buffer
-      };
 
       logger.info('Screenshot completed:', {
         imagePath,
@@ -48,13 +57,14 @@ class Capture {
 
       return {
         imagePath,
-        clipboardText: clipboardData.text || '',  // Keep for backward compatibility
-        clipboard: clipboardForUI,  // Send clipboard data with file path instead of buffer
+        captureClipboardEnabled,
+        clipboardText: clipboardData.text || '',
+        clipboard: { types: clipboardData.types, text: clipboardData.text, imagePath: result.clipboardImagePath },
         metadataPath: result.metadataPath,
         clipboardImagePath: result.clipboardImagePath
       };
     } catch (error) {
-      logger.error('Screenshot execution failed:', error.message);
+      logger.error('Capture execution failed:', error.message);
       throw error;
     }
   }

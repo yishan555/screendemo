@@ -14,6 +14,7 @@ const floatWindow = require('./windows/float');
 const settingsWindow = require('./windows/settings');
 const memoWindow = require('./windows/memo');
 const capture = require('./capture');
+const feishu = require('./feishu');
 
 // 确保单实例运行
 const gotTheLock = app.requestSingleInstanceLock();
@@ -86,6 +87,12 @@ if (!gotTheLock) {
         memoWindow.initialize();
       }, 3000);
 
+      // 11. Initialize Feishu integration (after 4 seconds)
+      setTimeout(() => {
+        logger.info('Initializing Feishu integration...');
+        feishu.initialize();
+      }, 4000);
+
     } catch (error) {
       logger.error('Application initialization failed:', error.message);
       logger.error(error.stack);
@@ -116,6 +123,7 @@ if (!gotTheLock) {
     shortcut.unregisterAll();
     floatWindow.destroy(); // Destroy float window on app quit
     tray.destroy();
+    feishu.stop(); // Stop Feishu integration
     logger.shutdown(); // Close logger system
   });
 

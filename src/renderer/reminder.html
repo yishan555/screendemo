@@ -25,35 +25,71 @@
     .header {
       font-weight: bold;
       font-size: 18px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     .time {
       font-size: 12px;
       opacity: 0.8;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
     }
 
     .content {
       background: rgba(0, 0, 0, 0.2);
-      padding: 15px;
+      padding: 12px 15px;
       border-radius: 8px;
       font-size: 14px;
       flex: 1;
-      margin-bottom: 20px;
-      overflow-y: auto;
-      word-break: break-all;
-      line-height: 1.5;
+      min-height: 0;
+      word-break: break-word;
+      line-height: 1.6;
       backdrop-filter: blur(10px);
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* When image is present, constrain note height so thumbnail can fill remaining space */
+    body.has-image .content {
+      flex: 0 0 auto;
+      max-height: 110px;
+    }
+
+    .thumbnail-container {
+      margin-top: 12px;
+      flex: 1;
+      min-height: 0;
+      display: none;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumbnail-container.visible {
+      display: flex;
+    }
+
+    .thumbnail-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      display: block;
     }
 
     .footer {
       display: flex;
       gap: 10px;
       justify-content: flex-end;
+      margin-top: 14px;
+      flex-shrink: 0;
     }
 
     button {
@@ -89,6 +125,9 @@
   <div class="header">⏰ Task Reminder</div>
   <div class="time" id="dueTime">Due: Loading...</div>
   <div class="content" id="content">Loading...</div>
+  <div class="thumbnail-container" id="thumbnailContainer">
+    <img id="thumbnailImg" src="" alt="Screenshot" />
+  </div>
   <div class="footer">
     <button id="snoozeBtn">Snooze 10m</button>
     <button id="doneBtn">Mark Done</button>
@@ -105,6 +144,24 @@
       currentRecord = data;
       document.getElementById('dueTime').textContent = `Due: ${data.dueTime}`;
       document.getElementById('content').textContent = data.summary;
+
+      // Show thumbnail if image path is provided
+      const container = document.getElementById('thumbnailContainer');
+      const img = document.getElementById('thumbnailImg');
+      if (data.imagePath) {
+        img.src = `file:///${data.imagePath.replace(/\\/g, '/')}`;
+        img.onerror = () => {
+          document.body.classList.remove('has-image');
+          container.classList.remove('visible');
+        };
+        img.onload = () => {
+          document.body.classList.add('has-image');
+          container.classList.add('visible');
+        };
+      } else {
+        document.body.classList.remove('has-image');
+        container.classList.remove('visible');
+      }
     });
 
     // Button handlers

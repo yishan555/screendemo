@@ -101,6 +101,27 @@
       border-radius: 0;
     }
 
+    .control-btn.push-all {
+      width: 24px;
+      height: 24px;
+      background: rgba(102, 126, 234, 0.8);
+      border: none;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn.push-all:hover {
+      background: rgba(102, 126, 234, 1);
+      transform: scale(1.1);
+    }
+
+    .control-btn.push-all:active {
+      transform: scale(0.95);
+    }
+
     .control-btn.pin:hover {
       background-color: rgba(255, 255, 255, 0.2);
       box-shadow: none;
@@ -616,6 +637,7 @@
       Memo
     </div>
     <div class="titlebar-controls">
+      <button class="control-btn push-all" id="pushAllBtn" title="Push all incomplete records to Feishu">📤</button>
       <button class="control-btn pin" id="pinBtn" title="Pin/Unpin"></button>
       <button class="control-btn minimize" id="minimizeBtn" title="Minimize"></button>
       <button class="control-btn" id="closeBtn" title="Close"></button>
@@ -688,6 +710,12 @@
       setupEventListeners();
       setupModalListeners();
       setupDrawerListeners();
+
+      // listen for refresh events from main process (e.g. Feishu messages)
+      ipcRenderer.on('memo:refresh-list', () => {
+        console.log('Renderer received memo:refresh-list, reloading records');
+        loadRecords(currentFilter);
+      });
 
       // Auto-refresh countdowns every minute
       setInterval(() => {
@@ -858,6 +886,49 @@
         }
       });
 
+      // Push all button
+      document.getElementById('pushAllBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('pushAllBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        btn.style.opacity = '0.5';
+
+        try {
+          const result = await ipcRenderer.invoke('memo:push-all-incomplete');
+
+          if (result.success) {
+            btn.textContent = '✅';
+            btn.style.background = 'rgba(76, 175, 80, 0.8)';
+            alert(`Successfully pushed ${result.count} incomplete record(s) to Feishu!`);
+            setTimeout(() => {
+              btn.textContent = '📤';
+              btn.style.background = 'rgba(102, 126, 234, 0.8)';
+              btn.style.opacity = '1';
+              btn.disabled = false;
+            }, 2000);
+          } else {
+            btn.textContent = '❌';
+            btn.style.background = 'rgba(255, 95, 86, 0.8)';
+            alert('Failed to push: ' + (result.error || 'Unknown error'));
+            setTimeout(() => {
+              btn.textContent = '📤';
+              btn.style.background = 'rgba(102, 126, 234, 0.8)';
+              btn.style.opacity = '1';
+              btn.disabled = false;
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Error pushing all to Feishu:', error);
+          btn.textContent = '❌';
+          alert('Error: ' + error.message);
+          setTimeout(() => {
+            btn.textContent = '📤';
+            btn.style.opacity = '1';
+            btn.disabled = false;
+          }, 2000);
+        }
+      });
+
       // Filter tabs
       document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -935,14 +1006,18 @@
           minute: '2-digit'
         });
 
-        const thumbnailHtml = record.imagePath
-          ? `<img src="file:///${record.imagePath.replace(/\\/g, '/')}" alt="Screenshot">`
-          : '<div class="thumbnail-placeholder"><img src="../assets/icons/icons-text.png" alt="text note" style="width: 40px; height: 40px; object-fit: contain;"></div>';
+        const thumbnailContainerHtml = record.imagePath
+          ? `<div class="thumbnail-container"><img src="file:///${record.imagePath.replace(/\\/g, '/')}" alt="Screenshot"></div>`
+          : '';
 
-        // Clipboard thumbnail (only show if clipboard contains image)
-        const clipboardThumbnailHtml = record.clipboard?.imagePath
-          ? `<div class="clipboard-thumbnail" data-clipboard-path="${record.clipboard.imagePath}">
-               <img src="file:///${record.clipboard.imagePath.replace(/\\/g, '/')}" alt="Clipboard image">
+        // Clipboard thumbnail (auto-captured image, or first pasted image as fallback)
+        const clipboardImgPath = record.clipboard?.imagePath
+          || (Array.isArray(record.clipboard?.pastedImages) && record.clipboard.pastedImages.length > 0
+              ? record.clipboard.pastedImages[0]
+              : null);
+        const clipboardThumbnailHtml = clipboardImgPath
+          ? `<div class="clipboard-thumbnail" data-clipboard-path="${clipboardImgPath}">
+               <img src="file:///${clipboardImgPath.replace(/\\/g, '/')}" alt="Clipboard image">
              </div>`
           : '';
 
@@ -977,9 +1052,7 @@
               </div>
               ${clipboardThumbnailHtml}
             </div>
-            <div class="thumbnail-container">
-              ${thumbnailHtml}
-            </div>
+            ${thumbnailContainerHtml}
             <button class="delete-btn">
               <img src="../assets/icons/icons-delete.png" alt="delete">
             </button>

@@ -319,6 +319,56 @@
       font-size: 12px;
     }
 
+    /* Pasted images grid */
+    .pasted-images-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .pasted-image-item {
+      position: relative;
+      width: calc(50% - 3px);
+      aspect-ratio: 4/3;
+      max-width: 130px;
+    }
+
+    .pasted-image-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+    }
+
+    .pasted-image-delete {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 18px;
+      height: 18px;
+      background: #ff3b30;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 0;
+      line-height: 1;
+      z-index: 10;
+    }
+
+    .pasted-image-item:hover .pasted-image-delete {
+      display: flex;
+    }
+
     /* 滚动条样式 */
     .info-value::-webkit-scrollbar {
       width: 6px;
@@ -358,7 +408,7 @@
     <div class="info-section">
       <div class="info-label">Note:</div>
       <textarea class="note-textarea" id="noteTextarea" placeholder="Edit note or add text here..."></textarea>
-      <div class="note-hint">Note is editable and auto-saved. Original clipboard below is read-only.</div>
+      <div class="note-hint" id="noteHint">Note is editable and auto-saved. Original clipboard below is read-only.</div>
     </div>
 
     <div class="info-section">
@@ -389,19 +439,24 @@
       </div>
     </div>
 
-    <div class="info-section">
+    <div class="info-section" id="clipboardSection">
       <div class="info-label">Original Clipboard Snapshot:</div>
       <div id="clipboardContent">
         <!-- Text clipboard -->
         <div id="clipboardTextSection" style="display: none;">
           <div class="info-value clipboard-text" id="clipboardText">(Empty)</div>
         </div>
-        <!-- Image clipboard -->
+        <!-- Image clipboard (auto-captured) -->
         <div id="clipboardImageSection" style="display: none;">
           <div class="clipboard-image-preview">
             <img id="clipboardImage" src="" alt="Clipboard image" />
             <button class="image-action-btn" id="openClipboardImageBtn">📂 Open Full Size</button>
           </div>
+        </div>
+        <!-- Pasted images grid (up to 4, with red dot delete) -->
+        <div id="pastedImagesSection" style="display: none;">
+          <div class="pasted-images-grid" id="pastedImagesGrid"></div>
+          <div class="note-hint" style="margin-top: 4px;" id="pasteCountHint"></div>
         </div>
         <!-- Empty state -->
         <div id="clipboardEmptySection" class="empty-text">
@@ -424,7 +479,9 @@
 
     let currentData = null;
     let hasUnsavedChanges = false;
+    let hasBeenSaved = false; // Track if record has been saved at least once
     let isEditMode = false; // Track if we're editing existing record
+    let pastedImages = []; // Track pasted images (when captureClipboard disabled)
 
     // Format ISO date string to datetime-local input format (YYYY-MM-DDTHH:mm)
     function formatDateTimeForInput(isoString) {
@@ -456,6 +513,8 @@
       console.log('Received screenshot data:', data);
       currentData = data;
       isEditMode = false; // New capture mode
+      hasBeenSaved = false; // Reset saved state for new capture
+      pastedImages = []; // Reset pasted images for new capture
       updateUI(data);
     });
 
@@ -464,24 +523,34 @@
       console.log('Received edit data:', data);
       currentData = data;
       isEditMode = true; // Edit mode
+      pastedImages = Array.isArray(data.clipboard?.pastedImages) ? [...data.clipboard.pastedImages] : [];
       updateUIForEdit(data);
     });
 
     // Update UI for new capture
     function updateUI(data) {
-      // Update note textarea with initial content
       const noteTextarea = document.getElementById('noteTextarea');
-      if (data.clipboard && data.clipboard.text) {
-        noteTextarea.value = data.clipboard.text;
+      const noteHint = document.getElementById('noteHint');
+
+      if (data.captureClipboardEnabled) {
+        // Clipboard was auto-captured: fill note with clipboard text if any
+        noteTextarea.value = (data.clipboard && data.clipboard.text) ? data.clipboard.text : '';
+        noteHint.textContent = 'Note is editable and auto-saved. Original clipboard below is read-only.';
       } else {
+        // Clipboard capture disabled: note starts empty, user can paste images
         noteTextarea.value = '';
+        noteHint.textContent = 'Note is editable. Paste an image (Ctrl+V) to attach it below.';
       }
 
-      // Display clipboard content by type
-      displayClipboardContent(data.clipboard);
+      // Pre-fill start time with current time; leave due time empty
+      const nowStr = formatDateTimeForInput(new Date().toISOString());
+      document.getElementById('startAt').value = nowStr;
+      document.getElementById('dueAt').value = '';
+      hasUnsavedChanges = true;
 
-      // Adjust window height after content is rendered
-      // Use multiple delays to ensure we catch the final layout
+      displayClipboardContent(data.clipboard, data.captureClipboardEnabled);
+      renderPastedImages();
+
       setTimeout(() => adjustWindowHeight(), 50);
       setTimeout(() => adjustWindowHeight(), 150);
       setTimeout(() => adjustWindowHeight(), 300);
@@ -489,61 +558,163 @@
 
     // Update UI for editing existing record
     function updateUIForEdit(data) {
-      // Update note textarea with existing note
       const noteTextarea = document.getElementById('noteTextarea');
-      // Note is an object with { text, updatedAt }, extract the text
-      const noteText = (data.note && typeof data.note === 'object')
-        ? data.note.text
-        : (data.note || '');
+      const noteHint = document.getElementById('noteHint');
+      const noteText = (data.note && typeof data.note === 'object') ? data.note.text : (data.note || '');
       noteTextarea.value = noteText;
+      noteHint.textContent = 'Note is editable and auto-saved.';
 
-      // Display clipboard content from record
-      displayClipboardContent(data.clipboard);
+      // Show clipboard content with edit mode (treat as captureClipboardEnabled=true for display)
+      displayClipboardContent(data.clipboard, true);
+      renderPastedImages();
 
-      // Adjust window height after content is rendered
       setTimeout(() => adjustWindowHeight(), 50);
       setTimeout(() => adjustWindowHeight(), 150);
       setTimeout(() => adjustWindowHeight(), 300);
 
-      // Reset unsaved changes flag since we just loaded
       hasUnsavedChanges = false;
     }
 
-    // Display clipboard content based on type
-    function displayClipboardContent(clipboard) {
+    // Display clipboard content based on type and capture mode
+    function displayClipboardContent(clipboard, captureClipboardEnabled) {
+      const clipboardSection = document.getElementById('clipboardSection');
       const textSection = document.getElementById('clipboardTextSection');
       const imageSection = document.getElementById('clipboardImageSection');
       const emptySection = document.getElementById('clipboardEmptySection');
 
-      // Hide all sections first
+      // Hide all sub-sections first
       textSection.style.display = 'none';
       imageSection.style.display = 'none';
       emptySection.style.display = 'none';
 
+      if (!captureClipboardEnabled) {
+        // Clipboard capture is disabled: hide the section entirely (shown later if images pasted)
+        clipboardSection.style.display = 'none';
+        return;
+      }
+
+      // Clipboard capture is enabled: show the section
+      clipboardSection.style.display = '';
+
       if (!clipboard || !clipboard.types || clipboard.types.length === 0) {
-        // No clipboard content
         emptySection.style.display = 'block';
         return;
       }
 
-      // Show text if available
       if (clipboard.types.includes('text') && clipboard.text) {
         textSection.style.display = 'block';
-        const clipboardTextEl = document.getElementById('clipboardText');
         const summary = clipboard.text.length > 200
           ? clipboard.text.substring(0, 200) + '...'
           : clipboard.text;
-        clipboardTextEl.textContent = summary;
+        document.getElementById('clipboardText').textContent = summary;
       }
 
-      // Show image if available
       if (clipboard.types.includes('image') && clipboard.imagePath) {
         imageSection.style.display = 'block';
-        const clipboardImageEl = document.getElementById('clipboardImage');
-        // Use file:// protocol to display local image
-        clipboardImageEl.src = clipboard.imagePath;
+        document.getElementById('clipboardImage').src = clipboard.imagePath;
+      }
+
+      if (!clipboard.types.includes('text') && !clipboard.types.includes('image')) {
+        emptySection.style.display = 'block';
       }
     }
+
+    // Render pasted images grid (for captureClipboard-disabled mode and edit mode)
+    function renderPastedImages() {
+      const pastedSection = document.getElementById('pastedImagesSection');
+      const grid = document.getElementById('pastedImagesGrid');
+      const hintEl = document.getElementById('pasteCountHint');
+      const clipboardSection = document.getElementById('clipboardSection');
+
+      if (pastedImages.length === 0) {
+        pastedSection.style.display = 'none';
+        // If captureClipboard was disabled, keep section hidden when no images
+        // (section visibility is managed by displayClipboardContent for the enabled case)
+        return;
+      }
+
+      // Show the clipboard section and the pasted images sub-section
+      clipboardSection.style.display = '';
+      pastedSection.style.display = 'block';
+      // Hide the empty-state when we have pasted images
+      document.getElementById('clipboardEmptySection').style.display = 'none';
+
+      const remaining = 4 - pastedImages.length;
+      hintEl.textContent = remaining > 0
+        ? `${pastedImages.length}/4 images – paste more (${remaining} remaining)`
+        : '4/4 images (maximum reached)';
+
+      grid.innerHTML = pastedImages.map((imgPath, idx) => {
+        const fileUrl = 'file:///' + imgPath.replace(/\\/g, '/');
+        return `
+          <div class="pasted-image-item" data-index="${idx}">
+            <img src="${fileUrl}" alt="Pasted image ${idx + 1}" data-path="${imgPath.replace(/"/g, '&quot;')}">
+            <button class="pasted-image-delete" data-index="${idx}" title="Remove image">✕</button>
+          </div>
+        `;
+      }).join('');
+
+      // Attach image click handlers
+      grid.querySelectorAll('.pasted-image-item img').forEach(img => {
+        img.addEventListener('click', () => {
+          ipcRenderer.send('open-image', img.dataset.path);
+        });
+      });
+
+      // Attach delete button handlers
+      grid.querySelectorAll('.pasted-image-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.index);
+          const imgPath = pastedImages[idx];
+          try {
+            await ipcRenderer.invoke('float:remove-pasted-image', {
+              metadataPath: currentData.metadataPath,
+              imagePath: imgPath
+            });
+            pastedImages.splice(idx, 1);
+            renderPastedImages();
+            adjustWindowHeight();
+          } catch (err) {
+            console.error('Failed to remove pasted image:', err);
+          }
+        });
+      });
+    }
+
+    // Intercept image pastes when captureClipboard is disabled
+    document.addEventListener('paste', async (e) => {
+      if (!currentData || currentData.captureClipboardEnabled) return;
+      if (!currentData.metadataPath) return;
+
+      const items = e.clipboardData ? Array.from(e.clipboardData.items) : [];
+      const imageItem = items.find(item => item.type.startsWith('image/'));
+      if (!imageItem) return; // No image in clipboard — let text paste go to textarea normally
+
+      e.preventDefault();
+
+      if (pastedImages.length >= 4) {
+        console.log('Max 4 images reached, ignoring paste');
+        return;
+      }
+
+      const blob = imageItem.getAsFile();
+      if (!blob) return;
+
+      try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const imageBuffer = Array.from(new Uint8Array(arrayBuffer));
+        const result = await ipcRenderer.invoke('float:save-pasted-image', {
+          metadataPath: currentData.metadataPath,
+          imageBuffer
+        });
+        pastedImages.push(result.imagePath);
+        renderPastedImages();
+        adjustWindowHeight();
+      } catch (err) {
+        console.error('Failed to save pasted image:', err);
+      }
+    });
 
     // Track changes to note textarea and schedule inputs
     document.getElementById('noteTextarea').addEventListener('input', () => {
@@ -648,6 +819,7 @@
           isEditMode: isEditMode  // Pass edit mode flag
         });
         hasUnsavedChanges = false;
+        hasBeenSaved = true;
         console.log('Record saved successfully');
       } catch (error) {
         console.error('Failed to save record:', error);
@@ -682,9 +854,12 @@
       ipcRenderer.send('open-memo');
     });
 
-    // Close float window (top button) - auto-save before closing
+    // Close float window (top button) - discard record if new capture and never saved, just close otherwise
     document.getElementById('closeBtnTop').addEventListener('click', async () => {
-      await saveNote();
+      if (!isEditMode && !hasBeenSaved && currentData && currentData.metadataPath) {
+        // New capture that was never saved: delete the record
+        await ipcRenderer.invoke('float:discard-record', { metadataPath: currentData.metadataPath });
+      }
       ipcRenderer.send('close-float');
     });
 
@@ -703,15 +878,12 @@
       // Use requestAnimationFrame to ensure layout is complete
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // Debug: log clipboard data structure
-          console.log('adjustWindowHeight called, currentData:', {
-            hasCurrentData: !!currentData,
-            hasClipboard: !!(currentData && currentData.clipboard),
-            types: currentData?.clipboard?.types,
-            hasImagePath: !!(currentData?.clipboard?.imagePath)
-          });
+          // Clipboard section is hidden when captureClipboard is disabled and no images pasted
+          const clipboardHidden = currentData &&
+                                  !currentData.captureClipboardEnabled &&
+                                  pastedImages.length === 0;
 
-          // Check if clipboard contains only text (no images)
+          // Check if clipboard contains only text (no images) — used when clipboard IS enabled
           const isTextOnly = currentData &&
                             currentData.clipboard &&
                             currentData.clipboard.types &&
@@ -720,29 +892,21 @@
 
           let adjustedHeight;
 
-          if (isTextOnly) {
-            // Fixed height for text-only clipboard
-            adjustedHeight = 450;
-            console.log('✅ Text-only clipboard detected: using fixed height 450px', {
-              types: currentData.clipboard.types
-            });
-          } else {
-            // Auto-calculate height for other cases
+          if (clipboardHidden) {
+            // No clipboard section: use actual DOM height with no artificial floor
             const documentHeight = document.documentElement.scrollHeight;
             const bodyHeight = document.body.scrollHeight;
             const contentHeight = Math.max(documentHeight, bodyHeight);
-
-            // Limit to reasonable range (min 450px to ensure all buttons visible, max 700px)
+            adjustedHeight = Math.min(contentHeight + 5, 700);
+          } else if (isTextOnly) {
+            // Clipboard section visible but text-only: fixed height
+            adjustedHeight = 450;
+          } else {
+            // Clipboard section with image or other content: auto-calculate
+            const documentHeight = document.documentElement.scrollHeight;
+            const bodyHeight = document.body.scrollHeight;
+            const contentHeight = Math.max(documentHeight, bodyHeight);
             adjustedHeight = Math.min(Math.max(contentHeight, 450), 700);
-
-            console.log('📏 Auto-height calculation:', {
-              isTextOnly,
-              types: currentData?.clipboard?.types,
-              documentHeight,
-              bodyHeight,
-              contentHeight,
-              adjustedHeight
-            });
           }
 
           ipcRenderer.send('adjust-float-height', adjustedHeight);
@@ -750,13 +914,6 @@
       });
     }
 
-    // Listen for window close event to auto-save
-    window.addEventListener('beforeunload', async (e) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        await saveNote();
-      }
-    });
   </script>
 </body>
 </html>

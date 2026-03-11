@@ -272,6 +272,20 @@
         <div class="form-hint">Click in the input field and press your desired key combination</div>
         <div class="form-hint">Supported modifiers: Ctrl, Shift, Alt, Command (macOS)</div>
       </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="captureScreenEnabled" style="margin-right: 8px;">
+          Capture Screen Screenshot
+        </label>
+        <div class="form-hint">When enabled, pressing the shortcut will capture and save a screenshot of the current screen. When disabled, only clipboard content is saved (no screenshot image).</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="captureClipboardEnabled" style="margin-right: 8px;">
+          Auto-capture Clipboard on Shortcut
+        </label>
+        <div class="form-hint">When enabled, the clipboard's text and image content are automatically read and attached when the shortcut is pressed. When disabled, the note starts empty and you can manually paste images into the record.</div>
+      </div>
     </div>
 
     <!-- Save Path Settings -->
@@ -334,6 +348,92 @@
       </div>
     </div>
 
+    <!-- Feishu Integration Settings -->
+    <div class="section">
+      <div class="section-title">🚀 Feishu Integration</div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="feishuEnabled" style="margin-right: 8px;">
+          Enable Feishu Integration
+        </label>
+        <div class="form-hint">Connect with Feishu to receive and send messages (requires outbound connection only)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">App ID</label>
+        <input type="text" class="form-input" id="feishuAppId" placeholder="cli_xxxxxxxxxxxxxxx">
+        <div class="form-hint">Your Feishu app ID from the Developer Console</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">App Secret</label>
+        <input type="password" class="form-input" id="feishuAppSecret" placeholder="Enter your app secret">
+        <div class="form-hint">Your Feishu app secret (kept secure locally)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target User ID</label>
+        <input type="text" class="form-input" id="feishuTargetUserId" placeholder="ou_xxxxxxxxxxxxxxx">
+        <div class="form-hint">The user_id of the person to chat with. <br><small>Previously used to filter incoming messages; now all messages are recorded regardless of sender.</small> <a href="#" id="helpUserId" style="color: #667eea;">How to get user_id?</a></div>
+      </div>
+
+      <div class="form-group" style="margin-left: 24px; border-left: 3px solid #e0e0e0; padding-left: 12px;">
+        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Alternative ID options (leave User ID empty to use these):</div>
+
+        <label class="form-label" style="font-size: 12px;">Target Open ID</label>
+        <input type="text" class="form-input" id="feishuTargetOpenId" placeholder="ou_xxxxxxxxxxxxxxx" style="font-size: 12px;">
+        <div class="form-hint" style="font-size: 11px;">Alternative: use open_id instead</div>
+
+        <label class="form-label" style="font-size: 12px; margin-top: 8px;">Target Chat ID</label>
+        <input type="text" class="form-input" id="feishuTargetChatId" placeholder="oc_xxxxxxxxxxxxxxx" style="font-size: 12px;">
+        <div class="form-hint" style="font-size: 11px;">Alternative: use chat_id for group chats</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Push Scope</label>
+        <div style="display:flex; flex-direction: column; gap:6px; margin-top:6px;">
+          <label><input type="radio" name="feishuPushScope" value="today_undo"> Today undo</label>
+          <label><input type="radio" name="feishuPushScope" value="all_undo"> All undo</label>
+          <label><input type="radio" name="feishuPushScope" value="today_all_records"> Today all records(undo+done)</label>
+          <div class="form-hint" style="font-size:12px; color:#666">Default: today_all_records. Controls which local records are aggregated for push.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="feishuEnableReceive" style="margin-right: 8px;">
+          Enable Message Receiving
+        </label>
+        <div class="form-hint">Receive messages from Feishu and auto-create Records</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="feishuEnableAutoReply" style="margin-right: 8px;">
+          Enable Auto-Reply
+        </label>
+        <div class="form-hint">Automatically reply when a message is received and saved</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="feishuEnableScheduledPush" style="margin-right: 8px;">
+          Enable Scheduled Push
+        </label>
+        <div class="form-hint">Auto-push all incomplete Records to Feishu at specified times daily</div>
+      </div>
+
+      <div class="form-group" id="scheduledTimesGroup" style="margin-left: 24px; border-left: 3px solid #e0e0e0; padding-left: 12px;">
+        <label class="form-label">Daily Push Times</label>
+        <div id="scheduledTimesList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;">
+          <!-- Time inputs will be dynamically added here -->
+        </div>
+        <button type="button" id="addTimeBtn" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">+ Add Time</button>
+        <div class="form-hint" style="font-size: 11px; margin-top: 8px;">Set times when all incomplete tasks should be pushed to Feishu (e.g., 09:00, 18:00)</div>
+      </div>
+    </div>
+
     <!-- Action Buttons -->
     <div class="btn-group">
       <button class="btn-reset" id="resetBtn">🔄 Reset to Default</button>
@@ -357,6 +457,8 @@
 
     function updateUI(settings) {
       document.getElementById('shortcutInput').value = settings.shortcut || 'CommandOrControl+Shift+X';
+      document.getElementById('captureScreenEnabled').checked = settings.captureScreen === true;
+      document.getElementById('captureClipboardEnabled').checked = settings.captureClipboard === true;
       document.getElementById('savePathInput').value = settings.customSavePath || '';
 
       const currentPathEl = document.getElementById('currentPath');
@@ -375,7 +477,58 @@
         document.getElementById('autoCollapseDelay').value = settings.drawer.autoCollapseDelay || 1000;
         document.getElementById('dockScreen').value = settings.drawer.dockScreen || 'cursor';
       }
+
+      // Load feishu settings
+      if (settings.feishu) {
+        document.getElementById('feishuEnabled').checked = settings.feishu.enabled || false;
+        document.getElementById('feishuAppId').value = settings.feishu.appId || '';
+        document.getElementById('feishuAppSecret').value = settings.feishu.appSecret || '';
+        document.getElementById('feishuTargetUserId').value = settings.feishu.targetUserId || '';
+        document.getElementById('feishuTargetOpenId').value = settings.feishu.targetOpenId || '';
+        document.getElementById('feishuTargetChatId').value = settings.feishu.targetChatId || '';
+        document.getElementById('feishuEnableReceive').checked = settings.feishu.enableReceiveMessages !== false;
+        document.getElementById('feishuEnableAutoReply').checked = settings.feishu.enableAutoReply !== false;
+        document.getElementById('feishuEnableScheduledPush').checked = settings.feishu.enableScheduledPush !== false;
+
+        // push scope: today_undo | all_undo | today_all_records
+        const pushScope = settings.feishu.pushScope || 'today_all_records';
+        const scopeRadio = document.querySelectorAll('input[name="feishuPushScope"]');
+        if (scopeRadio && scopeRadio.length) {
+          scopeRadio.forEach(r => r.checked = (r.value === pushScope));
+        }
+
+        // Load scheduled push times
+        const times = settings.feishu.scheduledPushTimes || ['09:00', '18:00'];
+        renderScheduledTimes(times);
+      }
     }
+
+    // Render scheduled push times
+    function renderScheduledTimes(times) {
+      const container = document.getElementById('scheduledTimesList');
+      container.innerHTML = times.map((time, index) => `
+        <div class="time-input-row" style="display: flex; gap: 8px; align-items: center;">
+          <input type="time" class="form-input scheduled-time-input" value="${time}" style="flex: 1; font-size: 12px; padding: 6px;">
+          <button type="button" class="remove-time-btn" data-index="${index}" style="padding: 6px 10px; background: #ff5f56; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
+        </div>
+      `).join('');
+
+      // Add event listeners for remove buttons
+      document.querySelectorAll('.remove-time-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.dataset.index);
+          times.splice(index, 1);
+          renderScheduledTimes(times);
+        });
+      });
+    }
+
+    // Add time button
+    document.getElementById('addTimeBtn').addEventListener('click', () => {
+      const currentTimes = Array.from(document.querySelectorAll('.scheduled-time-input')).map(input => input.value);
+      currentTimes.push('12:00');
+      renderScheduledTimes(currentTimes);
+    });
 
     // Shortcut recording
     const shortcutInput = document.getElementById('shortcutInput');
@@ -438,6 +591,8 @@
     document.getElementById('saveBtn').addEventListener('click', async () => {
       const newSettings = {
         shortcut: document.getElementById('shortcutInput').value,
+        captureScreen: document.getElementById('captureScreenEnabled').checked,
+        captureClipboard: document.getElementById('captureClipboardEnabled').checked,
         customSavePath: document.getElementById('savePathInput').value,
         drawer: {
           enabled: document.getElementById('drawerEnabled').checked,
@@ -446,6 +601,19 @@
           autoCollapse: document.getElementById('autoCollapse').checked,
           autoCollapseDelay: parseInt(document.getElementById('autoCollapseDelay').value),
           dockScreen: document.getElementById('dockScreen').value
+        },
+        feishu: {
+          enabled: document.getElementById('feishuEnabled').checked,
+          appId: document.getElementById('feishuAppId').value.trim(),
+          appSecret: document.getElementById('feishuAppSecret').value.trim(),
+          targetUserId: document.getElementById('feishuTargetUserId').value.trim(),
+          targetOpenId: document.getElementById('feishuTargetOpenId').value.trim(),
+          targetChatId: document.getElementById('feishuTargetChatId').value.trim(),
+          enableReceiveMessages: document.getElementById('feishuEnableReceive').checked,
+          enableAutoReply: document.getElementById('feishuEnableAutoReply').checked,
+          enableScheduledPush: document.getElementById('feishuEnableScheduledPush').checked,
+          scheduledPushTimes: Array.from(document.querySelectorAll('.scheduled-time-input')).map(input => input.value),
+          pushScope: (document.querySelector('input[name="feishuPushScope"]:checked') || {}).value || 'today_all_records'
         }
       };
 
@@ -465,6 +633,8 @@
       if (confirmed) {
         const defaultSettings = {
           shortcut: 'CommandOrControl+Shift+X',
+          captureScreen: false,
+          captureClipboard: false,
           customSavePath: '',
           drawer: {
             enabled: true,
@@ -473,6 +643,19 @@
             autoCollapse: true,
             autoCollapseDelay: 1000,
             dockScreen: 'cursor'
+          },
+          feishu: {
+            enabled: false,
+            appId: '',
+            appSecret: '',
+            targetUserId: '',
+            targetOpenId: '',
+            targetChatId: '',
+            enableReceiveMessages: true,
+            enableAutoReply: true,
+            enableScheduledPush: true,
+            scheduledPushTimes: ['09:00', '18:00'],
+            pushScope: 'today_all_records'
           }
         };
         updateUI(defaultSettings);
@@ -492,6 +675,26 @@
     // Minimize button (top)
     document.getElementById('minimizeBtnTop').addEventListener('click', () => {
       ipcRenderer.send('minimize-settings');
+    });
+
+    // Help link for getting user_id
+    document.getElementById('helpUserId').addEventListener('click', (e) => {
+      e.preventDefault();
+      const helpText = `How to get user_id:
+
+1. Open Feishu Developer Console (https://open.feishu.cn/)
+2. Go to your app's "Contact & Org" permissions
+3. Enable "Get user basic info" permission
+4. Use the API or Developer Tools to get user_id:
+   - Method 1: Call /open-apis/contact/v3/users/me
+   - Method 2: Check user info in group chat member list
+   - Method 3: Use Developer Tools in your app
+
+The user_id format looks like: ou_xxxxxxxxxxxxxxx
+
+Note: You can also use open_id or chat_id as alternatives.`;
+
+      alert(helpText);
     });
 
     function showSuccessMessage() {

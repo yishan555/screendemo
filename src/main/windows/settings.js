@@ -118,8 +118,11 @@ class SettingsWindow {
       logger.debug('Settings requested:', config);
       return {
         shortcut: config.shortcut,
+        captureScreen: config.captureScreen,
+        captureClipboard: config.captureClipboard,
         customSavePath: config.customSavePath,
-        drawer: config.drawer
+        drawer: config.drawer,
+        feishu: config.feishu
       };
     });
 
@@ -136,10 +139,19 @@ class SettingsWindow {
           ...newSettings.drawer
         };
 
+        // Deep merge feishu settings
+        const feishuUpdate = {
+          ...oldConfig.feishu,
+          ...newSettings.feishu
+        };
+
         const success = configManager.update({
           shortcut: newSettings.shortcut,
+          captureScreen: newSettings.captureScreen,
+          captureClipboard: newSettings.captureClipboard,
           customSavePath: newSettings.customSavePath,
-          drawer: drawerUpdate
+          drawer: drawerUpdate,
+          feishu: feishuUpdate
         });
 
         if (success) {
@@ -172,6 +184,14 @@ class SettingsWindow {
               memoWindow.window.close();
               logger.info('Closed memo window for mode change');
             }
+          }
+
+          // Reload Feishu integration if settings changed
+          const feishuChanged = JSON.stringify(oldConfig.feishu) !== JSON.stringify(newSettings.feishu);
+          if (feishuChanged) {
+            logger.info('Feishu settings changed, reloading integration');
+            const feishu = require('../feishu');
+            feishu.reload();
           }
 
           return true;

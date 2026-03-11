@@ -57,8 +57,8 @@ class MemoWindow {
     logger.info('Pre-loading reminder window...');
 
     this.reminderWindow = new BrowserWindow({
-      width: 400,
-      height: 250,
+      width: 420,
+      height: 300,
       frame: false,
       alwaysOnTop: true,
       skipTaskbar: false,
@@ -720,8 +720,15 @@ class MemoWindow {
     logger.info('Showing reminder for:', record.metadataPath);
 
     const noteText = record.note?.text || 'No content';
-    const summary = noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText;
+    const summary = noteText;
     const dueTime = new Date(record.schedule.dueAt).toLocaleString();
+
+    // Only show clipboard image in reminder; no image if clipboard had none
+    const imagePath = record.clipboard?.imagePath || null;
+
+    // Window dimensions: taller when there's an image to show
+    const winWidth = 440;
+    const winHeight = imagePath ? 490 : 300;
 
     // Use pre-loaded window if available, otherwise create new one
     if (!this.reminderWindow || this.reminderWindow.isDestroyed()) {
@@ -730,29 +737,34 @@ class MemoWindow {
 
     const reminderWindow = this.reminderWindow;
 
+    // Resize window before showing
+    reminderWindow.setSize(winWidth, winHeight);
+
     // Send data to renderer after window is ready
     if (reminderWindow.webContents.isLoading()) {
       reminderWindow.webContents.once('did-finish-load', () => {
         reminderWindow.webContents.send('reminder-data', {
           summary,
           dueTime,
-          metadataPath: record.metadataPath
+          metadataPath: record.metadataPath,
+          imagePath
         });
       });
     } else {
       reminderWindow.webContents.send('reminder-data', {
         summary,
         dueTime,
-        metadataPath: record.metadataPath
+        metadataPath: record.metadataPath,
+        imagePath
       });
     }
 
-    // Position at center
+    // Position at center using actual window dimensions
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     reminderWindow.setPosition(
-      Math.floor((width - 400) / 2),
-      Math.floor((height - 250) / 2)
+      Math.floor((width - winWidth) / 2),
+      Math.floor((height - winHeight) / 2)
     );
 
     reminderWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -868,6 +880,32 @@ class MemoWindow {
       logger.info('Opening record for editing:', record.metadataPath);
       const floatWindow = require('./float');
       floatWindow.showForEdit(record);
+    });
+
+    // Push record to Feishu
+    ipcMain.handle('memo:push-to-feishu', async (event, record) => {
+      logger.info('Pushing record to Feishu:', record.metadataPath);
+      try {
+        const feishu = require('../feishu');
+        const result = await feishu.pushRecord(record);
+        return result;
+      } catch (error) {
+        logger.error('Failed to push record to Feishu:', error.message);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Push all incomplete records to Feishu
+    ipcMain.handle('memo:push-all-incomplete', async (event) => {
+      logger.info('Pushing all incomplete records to Feishu');
+      try {
+        const feishu = require('../feishu');
+        const result = await feishu.pushAllIncomplete();
+        return result;
+      } catch (error) {
+        logger.error('Failed to push all incomplete records:', error.message);
+        return { success: false, error: error.message };
+      }
     });
 
     // Open memo window

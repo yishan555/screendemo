@@ -1,8 +1,8 @@
 # 📸 Windows 11 全局备忘录工具
 
-**当前版本**: v2.1.0
+**当前版本**: v2.2.0
 
-一个基于 Electron 的 Windows 11 本地常驻托盘工具，支持全局快捷键触发自动全屏截图、保存截图与剪贴板内容，并提供智能侧边栏抽屉模式和强大的记录管理功能。
+一个基于 Electron 的 Windows 11 本地常驻托盘工具，支持全局快捷键触发自动全屏截图、保存截图与剪贴板内容，并提供智能侧边栏抽屉模式、强大的记录管理功能和飞书机器人集成。
 
 ## ✨ 核心功能
 
@@ -13,6 +13,15 @@
 - **多屏幕支持**：根据鼠标当前所在的显示器自动截取全屏画面
 - **剪贴板保存**：同时读取并保存当前剪贴板内容（文本/图片）
 - **元数据记录**：自动生成包含时间戳、路径、剪贴板内容的 JSON 元数据文件
+
+### 🚀 飞书机器人集成 (NEW)
+- **消息接收**：通过出站WebSocket连接接收飞书私聊消息
+- **自动同步**：收到的消息自动创建为Record，包含文本和富文本内容，并添加【飞书】前缀标识
+- **自动回复**：可配置自动回复确认消息
+- **智能推送**：支持汇总推送本地记录到飞书，支持分页和美化格式
+- **推送范围**：可选择推送今日待办、所有待办或今日全部记录
+- **定时推送**：基于`dueAt`字段自动推送到期任务到飞书
+- **纯出站连接**：无需配置公网IP或内网穿透，仅使用出站连接
 
 ### 🗂️ 智能侧边栏 (Sidebar Drawer)
 - **抽屉式设计**：Memo 窗口支持停靠在屏幕边缘，收起时仅显示一个小把手
@@ -111,10 +120,114 @@ C:\Users\<用户名>\AppData\Roaming\screendemo\captures\
   - 自定义展开宽度
   - 自动收起延迟设置
   - 停靠屏幕选择（跟随鼠标或主屏幕）
+- **Feishu Integration**（飞书集成）：
+  - 启用/禁用飞书集成
+  - 配置App ID和App Secret
+  - 设置目标用户ID（user_id/open_id/chat_id）
+  - **推送范围**：选择推送内容范围（今日待办/所有待办/今日全部记录）
+  - 开关消息接收、自动回复、定时推送功能
+
+### 🔧 飞书集成配置指南
+
+#### 1. 创建飞书自建应用
+
+1. 访问[飞书开放平台](https://open.feishu.cn/)
+2. 创建企业自建应用
+3. 获取 **App ID** 和 **App Secret**（在"凭证与基础信息"页面）
+
+#### 2. 配置应用权限
+
+在应用管理页面，进入"权限管理"：
+- **必需权限**：
+  - `im:message` - 获取与发送单聊、群组消息
+  - `im:message.group_at_msg` - 获取群组中所有消息（可选）
+  - `im:message.p2p_msg` - 获取用户私聊消息
+
+#### 3. 获取目标用户ID
+
+**方法1：通过API获取（推荐）**
+```bash
+# 获取当前用户的user_id
+curl -X GET \
+  'https://open.feishu.cn/open-apis/contact/v3/users/me' \
+  -H 'Authorization: Bearer <your_access_token>'
+```
+
+**方法2：通过开发者工具**
+- 在飞书应用中打开群聊成员列表
+- 使用开发者工具查看用户信息
+- user_id格式：`ou_xxxxxxxxxxxxxxx`
+
+**替代选项**：
+- 使用 `open_id`（通过OAuth获取）
+- 使用 `chat_id`（用于群聊场景）
+
+#### 4. 在Settings中配置
+
+1. 打开应用Settings
+2. 找到"Feishu Integration"部分
+3. 填入：
+   - **App ID**: 从开放平台获取的cli_xxx
+   - **App Secret**: 对应的密钥
+   - **Target User ID**: 目标用户的ou_xxx（推荐使用user_id）
+4. 启用需要的功能：
+   - ✅ Enable Feishu Integration
+   - ✅ Enable Message Receiving（接收飞书消息并自动创建Record）
+   - ✅ Enable Auto-Reply（自动回复确认消息）
+   - ✅ Enable Scheduled Push（到期任务自动推送到飞书）
+   - **Push Scope**：选择推送范围（默认：Today - TODOs + DONE）
+     - `today_undo`：仅推送今日新增的待办记录
+     - `all_undo`：推送所有待办记录
+     - `today_all_records`：推送今日新增的待办+已完成记录
+5. 点击Save保存配置
+
+#### 5. 使用飞书集成
+
+**接收消息**：
+- 在飞书中向机器人发送私聊消息
+- 消息会自动在应用中创建为Record，并添加【飞书】前缀
+- 如果启用了自动回复，会收到确认消息
+
+**推送记录**：
+- 在Memo窗口中点击"Push All"按钮
+- 系统会根据设置的推送范围汇总记录
+- 发送单条（或分页）美化消息到飞书
+- 消息包含时间信息、任务状态、剩余时间等
+- 支持超时提醒（⏰）和删除线格式（DONE 记录）
+
+**自动定时推送**：
+- 为Record设置`Due At`时间
+- 到达截止时间时，系统会自动推送到飞书
+- 已推送的Record不会重复推送
+
+#### 故障排查
+
+**无法连接飞书**：
+- 检查App ID和App Secret是否正确
+- 确认应用权限已正确配置
+- 查看日志文件（logs目录）了解详细错误
+
+**收不到消息**：
+- 确认"Enable Message Receiving"已开启
+- 检查Target User ID是否正确
+- 确认消息来自配置的目标用户
+
+**推送失败**：
+- 确认目标用户ID有效
+- 检查网络连接
+- 查看error消息了解具体原因
 
 详细更新内容请查看 [CHANGELOG.md](CHANGELOG.md)。
 
-## v2.1.0 新功能
+## v2.2.0 新功能
+
+### 🚀 飞书机器人集成
+- 全新的飞书集成功能，支持消息收发和自动推送
+- 纯出站连接设计，无需公网IP或内网穿透
+- WebSocket实时接收消息，自动同步为Record
+- 手动推送和定时推送双重推送机制
+
+## v2.1.0 功能
 
 ### ✨ 智能侧边栏抽屉模式
 - 全新的侧边栏交互体验，减少桌面空间占用
@@ -131,7 +244,8 @@ C:\Users\<用户名>\AppData\Roaming\screendemo\captures\
 
 - **Electron** - 跨平台桌面应用框架
 - **screenshot-desktop** - 屏幕截图库
-- **Node.js** - JavaScript （运行时）
+- **@larksuiteoapi/node-sdk** - 飞书官方Node.js SDK
+- **Node.js** - JavaScript 运行时
 
 ## 📄 许可证
 

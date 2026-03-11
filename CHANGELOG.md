@@ -7,6 +7,91 @@
 
 ---
 
+## [2.2.1] - 2026-03-10
+
+### 新增 (Added)
+- 📋 **剪贴板自动读取开关 (Configurable Clipboard Capture)**
+  - 设置页新增"Auto-capture Clipboard on Shortcut"复选框
+  - 禁用时：浮窗以空白笔记打开，剪贴板区域完全隐藏
+  - 禁用时：用户可手动粘贴（Ctrl+V）最多 4 张图片附加到记录
+  - 启用时：行为与之前一致，自动读取剪贴板文字和图片
+
+- 🖼️ **手动粘贴图片功能 (Manual Image Paste)**
+  - 在剪贴板捕获禁用状态下，支持向浮窗粘贴图片（最多 4 张）
+  - 图片以 2×2 网格展示，鼠标悬停显示红色删除按钮
+  - 粘贴的图片自动保存到磁盘并注册到记录元数据
+  - 删除图片时同步从磁盘和元数据中移除
+  - Memo 列表中以首张粘贴图片作为缩略图展示
+
+- ⏱️ **开始时间自动填充 (Auto Start Time)**
+  - 每次快捷键呼出浮窗时，Start 时间栏自动填充为当前系统时间
+  - Due 时间栏默认保持空白
+
+### 改进 (Changed)
+- 🪟 **浮窗高度重置 (Window Height Reset)**
+  - 每次通过快捷键呼出新浮窗时，窗口高度重置为初始值（450px），不再复用上次关闭时的尺寸
+
+- 🪟 **浮窗高度自适应优化 (Height Adaptation)**
+  - 剪贴板捕获禁用且无粘贴图片时，窗口高度贴合内容，按钮下方不再留有空白区域
+  - 将 `minHeight` 从 525px 降低至 350px，解除对窗口缩小的硬性约束
+
+- 💾 **保存行为调整 (Save Behavior)**
+  - 移除 `beforeunload` 自动保存：关闭浮窗不再触发自动保存
+  - 红色关闭按钮（×）行为变更：
+    - 新记录且从未保存过：关闭时自动删除该条记录及关联文件
+    - 新记录已点击过保存：关闭时保留记录，不再删除
+    - 编辑模式（从 Memo 打开）：关闭时始终保留记录
+  - 仅通过点击 **Save** 按钮才会保存记录到 Memo
+
+### 修复 (Fixed)
+- 🐛 修复粘贴图片在 Windows 路径下点击无法打开的问题
+  - 根本原因：反斜杠 `\` 嵌入 HTML `onclick` 属性时被解释为 JS 转义字符而丢失
+  - 修复方案：改用 `data-path` 属性 + 事件监听器，避免路径经过 JS 字符串转义
+
+### 技术细节 (Technical)
+- `storage.js` 新增 `savePastedImage()` 和 `removePastedImage()` 方法
+- `storage.js` `deleteRecord()` 现在同时清理 `pastedImages` 中的关联图片文件
+- `float.js` 新增三个 IPC handler：`float:save-pasted-image`、`float:remove-pasted-image`、`float:discard-record`
+- `float.html` 新增 `hasBeenSaved` 状态变量，追踪记录是否已至少保存过一次
+- `configManager.js` / `settings.js` / `settings.html` 新增 `captureClipboard` 配置项支持
+
+---
+
+## [2.2.0] - 2026-03-05
+
+### 新增 (Added)
+- ✨ **飞书推送范围设置 (Feishu Push Scope Settings)**
+  - 新增推送范围选项：`today_undo`（仅今日待办）、`all_undo`（所有待办）、`today_all_records`（今日全部记录，默认）
+  - 在 Settings → Feishu Integration 中可选择推送范围
+  - 支持分区展示：TODO 和 DONE 分开显示
+
+- 📤 **智能汇总推送 (Aggregated Push)**
+  - 推送时不再逐条发送记录，而是汇总为单条飞书消息
+  - 支持长消息自动分页，标题标注页码（如 (1/3)）
+  - 每页消息限制约 3000 字符，确保发送成功
+
+- 🎨 **推送消息美化 (Push Message Formatting)**
+  - 超时任务前加 ⏰ 符号
+  - 剩余时间显示：精确到 0.1 小时
+  - DONE 记录使用 Markdown 删除线 ~~text~~
+  - 任务文本截断到 30 字（展示用，不修改原数据）
+
+- 📝 **飞书消息接收优化 (Feishu Message Reception)**
+  - 接收到的消息自动添加 【飞书】 前缀标识
+  - 改进事件解析，支持多种事件结构
+  - 移除发送者过滤，所有消息均记录（设置仅影响推送）
+
+### 改进 (Changed)
+- 🔄 **推送逻辑重构**：从逐条推送改为汇总推送，提升用户体验和消息可读性
+- 📊 **记录排序优化**：TODO 按到期时间升序排序，无到期时间按创建时间降序
+- 🎯 **IPC 通信增强**：Memo 窗口刷新时检查加载状态，避免消息丢失
+
+### 修复 (Fixed)
+- 🐛 修复飞书事件解析失败导致消息丢失的问题
+- 🐛 修复推送时非目标用户消息被忽略的问题（现改为记录所有消息）
+
+---
+
 ## [2.1.0] - 2026-02-13
 
 ### 新增 (Added)

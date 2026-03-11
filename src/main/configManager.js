@@ -14,6 +14,8 @@ class ConfigManager {
     this.config = null;
     this.defaultConfig = {
       shortcut: 'CommandOrControl+Shift+X',
+      captureScreen: false,
+      captureClipboard: false,
       customSavePath: '',
       logLevel: 'info',
       // Sidebar drawer settings
@@ -34,6 +36,22 @@ class ConfigManager {
         lastDockY: null, // Last saved Y for handle
         lastExpandedX: null, // Last saved X for expanded
         lastExpandedY: null  // Last saved Y for expanded
+      },
+      // Feishu integration settings
+      feishu: {
+        enabled: false,  // Master switch for Feishu integration
+        appId: '',  // Feishu App ID
+        appSecret: '',  // Feishu App Secret
+        targetUserId: '',  // Target user_id for private chat (easiest method)
+        targetOpenId: '',  // Alternative: use open_id
+        targetChatId: '',  // Alternative: use chat_id
+        enableReceiveMessages: true,  // Enable WebSocket message receiving
+        enableAutoReply: true,  // Auto-reply when message received
+        enableScheduledPush: true,  // Enable scheduled push based on due time
+        scheduledPushTimes: ['09:00', '18:00'],  // Daily push times (HH:mm format)
+        // pushScope options: 'today_undo' | 'all_undo' | 'today_all_records'
+        // default is 'today_all_records'
+        pushScope: 'today_all_records'
       }
     };
   }
